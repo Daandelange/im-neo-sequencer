@@ -344,6 +344,10 @@ namespace ImGui {
         labelSize.x += imStyle.FramePadding.x * 2 + style.ItemSpacing.x * 2 +
                        (float) currentTimelineDepth * style.DepthItemSpacing;
 
+        bool isGroup = flags & ImGuiNeoTimelineFlags_Group && closable;
+        if(isGroup)
+            labelSize.x += imStyle.ItemSpacing.x + GetFontSize();
+
         if (context.valuesWidth < labelSize.x) // Make left panel wide enough
             context.valuesWidth = labelSize.x;
 
@@ -360,9 +364,9 @@ namespace ImGui {
             context.valuesCursor = {context.startCursor.x, context.valuesCursor.y};
         }
 
+
         currentTimelineHeight = labelSize.y;
         context.filledHeight += currentTimelineHeight;
-        bool isGroup = flags & ImGuiNeoTimelineFlags_Group && closable;
 
         if (addRes) {
             RenderNeoTimelane(id == context.selectedTimeline,

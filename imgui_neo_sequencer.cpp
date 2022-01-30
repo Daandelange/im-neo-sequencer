@@ -11,7 +11,8 @@
 
 namespace ImGui {
     struct ImGuiNeoSequencerInternalData {
-        ImVec2 startCursor = {0, 0}; // Cursor on top, below zoom slider
+        ImVec2 startCursor = {0,0}; // Cursor in TL corner of whole widget
+        ImVec2 topBarStartCursor = {0, 0}; // Cursor on top, below zoom slider
         ImVec2 startValuesCursor = {0, 0}; // Cursor on top of values
         ImVec2 valuesCursor = {0, 0}; // Current cursor position, used for values drawing
 
@@ -76,7 +77,7 @@ namespace ImGui {
         const auto &imStyle = GetStyle();
         const auto width = style.CurrentFramePointerSize * GetIO().FontGlobalScale;
         const auto cursor =
-                context.startCursor + ImVec2{context.valuesWidth + imStyle.FramePadding.x - width / 2.0f, 0};
+                context.topBarStartCursor + ImVec2{context.valuesWidth + imStyle.FramePadding.x - width / 2.0f, 0};
         const auto currentFrameCursor = cursor + ImVec2{getKeyframePositionX(frame, context), 0};
 
         float pointerHeight = style.CurrentFramePointerSize * 2.5f;
@@ -92,7 +93,7 @@ namespace ImGui {
 
         const auto &imStyle = GetStyle();
 
-        const auto timelineXmin = context.startCursor.x + context.valuesWidth + imStyle.FramePadding.x;
+        const auto timelineXmin = context.topBarStartCursor.x + context.valuesWidth + imStyle.FramePadding.x;
 
         const ImVec2 timelineXRange = {
                 timelineXmin, //min
@@ -143,7 +144,7 @@ namespace ImGui {
     }
 
     static void finishPreviousTimeline(ImGuiNeoSequencerInternalData &context) {
-        context.valuesCursor = {context.startCursor.x, context.valuesCursor.y};
+        context.valuesCursor = {context.topBarStartCursor.x, context.valuesCursor.y};
         currentTimelineHeight = 0.0f;
     }
 
@@ -166,9 +167,30 @@ namespace ImGui {
         const auto drawList = ImGui::GetWindowDrawList();
 
         drawList->AddCircleFilled(pos + ImVec2{0, currentTimelineHeight / 2.f}, currentTimelineHeight / 3.0f,
-                                  IsItemHovered() ? IM_COL32(240, 90, 90, 240) : IM_COL32_WHITE, 4);
+                                  IsItemHovered() ?
+                                  ColorConvertFloat4ToU32(GetStyleNeoSequencerColorVec4(ImGuiNeoSequencerCol_KeyframeHovered)) :
+                                  ColorConvertFloat4ToU32(GetStyleNeoSequencerColorVec4(ImGuiNeoSequencerCol_Keyframe)), 4);
 
         return true;
+    }
+
+
+    static uint32_t idCounter = 0;
+    static char		idBuffer[16];
+
+    const char* generateID()
+    {
+        idBuffer[0] = '#';
+        idBuffer[1] = '#';
+        memset(idBuffer + 2, 0, 14);
+        sprintf_s(idBuffer + 2, 14, "%o", idCounter++);
+
+        return &idBuffer[0];
+    }
+
+    void resetID()
+    {
+        idCounter = 0;
     }
 
     static void renderCurrentFrame(ImGuiNeoSequencerInternalData &context) {
@@ -177,7 +199,7 @@ namespace ImGui {
         const auto drawList = ImGui::GetWindowDrawList();
 
         RenderNeoSequencerCurrentFrame(
-                GetStyleNeoSequencerColorVec4(ImGuiNeoSequencerCol_TimelineBorder),
+                GetStyleNeoSequencerColorVec4(ImGuiNeoSequencerCol_FramePointerLine),
                 context.currentFrameColor,
                 bb,
                 context.size.y - context.topBarSize.y,
@@ -185,8 +207,80 @@ namespace ImGui {
                 drawList
         );
     }
-    ////////////////////////////////////
 
+    static void processAndRenderZoom(ImGuiNeoSequencerInternalData &context, bool allowEditingLength, uint32_t * start, uint32_t * end) {
+        const auto &imStyle = GetStyle();
+        ImGuiWindow *window = GetCurrentWindow();
+
+        const auto zoomHeight = GetFontSize() * style.ZoomHeightScale;
+
+        auto * drawList = GetWindowDrawList();
+
+        //Input width
+        const auto inputWidth = CalcTextSize("123456").x;
+
+        const auto inputWidthWithPadding = inputWidth + imStyle.ItemSpacing.x;
+
+        const auto cursor = allowEditingLength ? context.startCursor + ImVec2{inputWidthWithPadding, 0} : context.startCursor;
+
+        const auto size = allowEditingLength ?
+                context.size.x - 2*inputWidthWithPadding :
+                context.size.x;
+
+        const ImRect bb{cursor, cursor + ImVec2{size, zoomHeight}};
+
+        const ImVec2 frameNumberBorderSize{inputWidth - imStyle.FramePadding.x, zoomHeight};
+
+        const ImVec2 startFrameTextCursor{context.startCursor + ImVec2{imStyle.FramePadding.x,0}};
+
+        // Text number borders
+        //drawList->AddRect(startFrameTextCursor, startFrameTextCursor + frameNumberBorderSize,ColorConvertFloat4ToU32(GetStyleNeoSequencerColorVec4(ImGuiNeoSequencerCol_TimelineBorder)));
+
+        const auto zoomBarEndWithSpacing = ImVec2{bb.Max.x + imStyle.ItemSpacing.x, context.startCursor.y};
+
+        /*
+        drawList->AddRect(zoomBarEndWithSpacing,
+                          zoomBarEndWithSpacing + frameNumberBorderSize,ColorConvertFloat4ToU32(GetStyleNeoSequencerColorVec4(ImGuiNeoSequencerCol_TimelineBorder)));
+        */
+
+        int32_t startFrameVal = *start;
+        int32_t endFrameVal = *end;
+
+        auto prevWindowCursor = window->DC.CursorPos;
+
+        PushItemWidth(inputWidth);
+        InputScalar("##input_start_frame",ImGuiDataType_U32,&startFrameVal,NULL,NULL,NULL,allowEditingLength ? 0 : ImGuiInputTextFlags_ReadOnly );
+
+        window->DC.CursorPos = ImVec2{zoomBarEndWithSpacing.x, prevWindowCursor.y};
+
+        PushItemWidth(inputWidth);
+        InputScalar("##input_end_frame",ImGuiDataType_U32,&endFrameVal,NULL,NULL,NULL,allowEditingLength ? 0 : ImGuiInputTextFlags_ReadOnly );
+
+        window->DC.CursorPos = prevWindowCursor;
+
+        if(startFrameVal < 0)
+            startFrameVal = *start;
+
+        if(endFrameVal < 0)
+            endFrameVal = *end;
+
+        if(endFrameVal < startFrameVal)
+            endFrameVal = *end;
+
+        *start = startFrameVal;
+        *end = endFrameVal;
+
+        //drawList->AddText(startFrameTextCursor + ImVec2{frameNumberBorderSize.x, 0} - ImVec2{numberTextWidth,0},IM_COL32_WHITE,numberText);
+
+        //Background
+        drawList->AddRectFilled(bb.Min, bb.Max, ColorConvertFloat4ToU32(GetStyleNeoSequencerColorVec4(ImGuiNeoSequencerCol_ZoomBarBg)),10.0f);
+
+        //TODO: Add sldier scaling based on zoom and position based on frame offset
+
+        //Render bar
+        drawList->AddRectFilled(bb.Min + imStyle.ItemInnerSpacing / 2.0f, bb.Max - imStyle.ItemInnerSpacing / 2.0f, ColorConvertFloat4ToU32(GetStyleNeoSequencerColorVec4(ImGuiNeoSequencerCol_ZoomBarSlider)), 10.0f);
+    }
+    ////////////////////////////////////
 
     const ImVec4 &GetStyleNeoSequencerColorVec4(ImGuiNeoSequencerCol idx) {
         return GetNeoSequencerStyle().Colors[idx];
@@ -195,6 +289,7 @@ namespace ImGui {
     ImGuiNeoSequencerStyle &GetNeoSequencerStyle() {
         return style;
     }
+
 
     bool
     BeginNeoSequencer(const char *idin, uint32_t *frame, uint32_t *startFrame, uint32_t *endFrame, const ImVec2 &size,
@@ -220,19 +315,10 @@ namespace ImGui {
         const auto cursorBasePos = GetCursorScreenPos() + window->Scroll;
         const ImRect clip = {cursorBasePos, cursorBasePos + window->ContentRegionRect.GetSize()};
 
-        //ImGui::ItemSize(clip);
-
         PushID(idin);
         const auto id = window->IDStack[window->IDStack.size() - 1];
 
-        //I cant use this here, because then I cant add separate items inside
-        //const auto id = window->GetID(idin);
-        //if(!ItemAdd(clip, id))
-        //    return false;
-
         inSequencer = true;
-
-        bool first = sequencerData.count(id) == 0;
 
         auto &context = sequencerData[id];
 
@@ -242,10 +328,15 @@ namespace ImGui {
         if (realSize.y <= 0.0f)
             realSize.y = ImMax(4.0f, context.filledHeight);
 
+        const bool showZoom = !(flags & ImGuiNeoSequencerFlags_HideZoom);
+
         context.startCursor = cursor;
+        // If zoom is shown, we offset it by height of zoom bar + padding
+        context.topBarStartCursor = showZoom ? cursor + ImVec2{0, GetFontSize() * style.ZoomHeightScale + imStyle.FramePadding.y } : cursor;
         context.startFrame = *startFrame;
         context.endFrame = *endFrame;
         context.size = realSize;
+
 
         currentSequencer = window->IDStack[window->IDStack.size() - 1];
 
@@ -255,13 +346,16 @@ namespace ImGui {
                                      drawList, style.SequencerRounding);
 
         RenderNeoSequencerTopBarBackground(GetStyleNeoSequencerColorVec4(ImGuiNeoSequencerCol_TopBarBg),
-                                           context.startCursor, context.topBarSize,
+                                           context.topBarStartCursor, context.topBarSize,
                                            drawList, style.SequencerRounding);
 
         RenderNeoSequencerTopBarOverlay(context.zoom, context.valuesWidth, context.startFrame, context.endFrame,
                                         context.offsetFrame,
-                                        context.startCursor, context.topBarSize, drawList,
+                                        context.topBarStartCursor, context.topBarSize, drawList,
                                         style.TopBarShowFrameLines, style.TopBarShowFrameTexts);
+
+        if(showZoom)
+            processAndRenderZoom(context, flags & ImGuiNeoSequencerFlags_AllowLengthChanging, startFrame, endFrame);
 
         context.topBarSize = ImVec2(context.size.x, style.TopBarHeight);
 
@@ -271,9 +365,9 @@ namespace ImGui {
         if (context.size.y < context.filledHeight)
             context.size.y = context.filledHeight;
 
-        context.filledHeight = context.topBarSize.y + style.TopBarSpacing;
+        context.filledHeight = context.topBarSize.y + style.TopBarSpacing + (showZoom ? imStyle.FramePadding.y + style.ZoomHeightScale + GetFontSize(): 0.0f);
 
-        context.startValuesCursor = context.startCursor + ImVec2{0, context.topBarSize.y + style.TopBarSpacing};
+        context.startValuesCursor = context.topBarStartCursor + ImVec2{0, context.topBarSize.y + style.TopBarSpacing};
         context.valuesCursor = context.startValuesCursor;
 
         processCurrentFrame(frame, context);
@@ -319,6 +413,7 @@ namespace ImGui {
         ImGui::PopStyleVar();
         PopID();
         imStyle.GrabMinSize = oldGrabSize;
+        resetID();
     }
 
     IMGUI_API bool BeginNeoGroup(const char *label, bool *open) {
@@ -329,6 +424,70 @@ namespace ImGui {
         return EndNeoTimeLine();
     }
 
+    static bool groupBehaviour(const ImGuiID id, bool* open, const ImVec2 labelSize)
+    {
+        auto& context = sequencerData[currentSequencer];
+        ImGuiWindow* window = GetCurrentWindow();
+
+        const bool closable = open != nullptr;
+
+        auto drawList = ImGui::GetWindowDrawList();
+        const float arrowWidth = drawList->_Data->FontSize;
+        const ImVec2 arrowSize = { arrowWidth, arrowWidth };
+        const ImRect arrowBB = {
+                context.valuesCursor,
+                context.valuesCursor + arrowSize
+        };
+        const ImVec2 groupBBMin = { context.valuesCursor + ImVec2{arrowSize.x, 0.0f} };
+        const ImRect groupBB = {
+                groupBBMin,
+                groupBBMin + labelSize
+        };
+        const ImGuiID arrowID = window->GetID(generateID());
+        const auto addArrowRes = ItemAdd(arrowBB, arrowID);
+        if (addArrowRes)
+        {
+            if (IsItemClicked() && closable)
+                (*open) = !(*open);
+        }
+
+        const auto addGroupRes = ItemAdd(groupBB, id);
+        if (addGroupRes)
+        {
+            if (IsItemClicked())
+            {
+                context.selectedTimeline = context.selectedTimeline == id ? 0 : id;
+            }
+        }
+        const float width = groupBB.Max.x - arrowBB.Min.x;
+        context.valuesWidth = std::max(context.valuesWidth, width); // Make left panel wide enough
+        return addGroupRes && addArrowRes;
+    }
+
+    static bool timelineBehaviour(const ImGuiID id, const ImVec2 labelSize)
+    {
+        auto& context = sequencerData[currentSequencer];
+        ImGuiWindow* window = GetCurrentWindow();
+
+        const ImRect groupBB = {
+                context.valuesCursor,
+                context.valuesCursor + labelSize
+        };
+
+        const auto addGroupRes = ItemAdd(groupBB, id);
+        if (addGroupRes)
+        {
+            if (IsItemClicked())
+            {
+                context.selectedTimeline = context.selectedTimeline == id ? 0 : id;
+            }
+        }
+        const float width = groupBB.Max.x - groupBB.Min.x;
+        context.valuesWidth = std::max(context.valuesWidth, width); // Make left panel wide enough
+
+        return addGroupRes;
+    }
+
     bool BeginNeoTimeline(const char *label, uint32_t **keyframes, uint32_t keyframeCount, bool *open, ImGuiNeoTimelineFlags flags) {
         IM_ASSERT(inSequencer && "Not in active sequencer!");
 
@@ -337,62 +496,50 @@ namespace ImGui {
         auto &context = sequencerData[currentSequencer];
         const auto &imStyle = GetStyle();
         ImGuiWindow *window = GetCurrentWindow();
-
+        const ImGuiID id = window->GetID(label);
         auto labelSize = CalcTextSize(label);
 
         labelSize.y += imStyle.FramePadding.y * 2 + style.ItemSpacing.y * 2;
         labelSize.x += imStyle.FramePadding.x * 2 + style.ItemSpacing.x * 2 +
                        (float) currentTimelineDepth * style.DepthItemSpacing;
 
+
         bool isGroup = flags & ImGuiNeoTimelineFlags_Group && closable;
-        if(isGroup)
+        bool addRes = false;
+        if (isGroup)
+        {
             labelSize.x += imStyle.ItemSpacing.x + GetFontSize();
-
-        if (context.valuesWidth < labelSize.x) // Make left panel wide enough
-            context.valuesWidth = labelSize.x;
-
-        const ImRect bb = {
-                context.valuesCursor,
-                context.valuesCursor + ImVec2{context.valuesWidth, labelSize.y}
-        };
-
-        const ImGuiID id = window->GetID(label);
-
-        const auto addRes = ItemAdd(bb, id);
-
-        if (currentTimelineDepth > 0) {
-            context.valuesCursor = {context.startCursor.x, context.valuesCursor.y};
+            addRes = groupBehaviour(id, open, labelSize);
+        }
+        else
+        {
+            addRes = timelineBehaviour(id, labelSize);
         }
 
+        if (currentTimelineDepth > 0) {
+            context.valuesCursor = {context.topBarStartCursor.x, context.valuesCursor.y};
+        }
 
         currentTimelineHeight = labelSize.y;
         context.filledHeight += currentTimelineHeight;
 
-        if (addRes) {
+        if (addRes)
+        {
             RenderNeoTimelane(id == context.selectedTimeline,
                               context.valuesCursor + ImVec2{context.valuesWidth, 0},
                               ImVec2{context.size.x - context.valuesWidth, currentTimelineHeight},
                               GetStyleNeoSequencerColorVec4(ImGuiNeoSequencerCol_SelectedTimeline));
 
+            ImVec4 color = GetStyleColorVec4(ImGuiCol_Text);
+            if (IsItemHovered()) color.w *= 0.7f;
+
             RenderNeoTimelineLabel(label,
                                    context.valuesCursor + imStyle.FramePadding +
-                                   ImVec2{(float) currentTimelineDepth * style.DepthItemSpacing, 0},
+                                   ImVec2{(float)currentTimelineDepth * style.DepthItemSpacing, 0},
                                    labelSize,
-                                   IsItemHovered() ? GetStyleColorVec4(ImGuiCol_Text)  *
-                                                     ImVec4{
-                                                             1, 1, 1, 0.7f
-                                                     } :
-                                   GetStyleColorVec4(ImGuiCol_Text),
+                                   color,
                                    isGroup,
                                    isGroup && (*open));
-
-            if (IsItemClicked()) {
-                context.selectedTimeline = context.selectedTimeline == id ? 0 : id;
-            }
-
-            if (IsItemHovered() && IsMouseDoubleClicked(ImGuiMouseButton_Left) && closable) {
-                (*open) = !(*open);
-            }
         }
 
         for (uint32_t i = 0; i < keyframeCount; i++) {
@@ -402,15 +549,16 @@ namespace ImGui {
         context.valuesCursor.x += imStyle.FramePadding.x + (float) currentTimelineDepth * style.DepthItemSpacing;
         context.valuesCursor.y += currentTimelineHeight;
 
-
         const auto result = !closable || (*open);
 
-        if (result) {
+        if (result)
+        {
             currentTimelineDepth++;
-        } else {
+        }
+        else
+        {
             finishPreviousTimeline(context);
         }
-
         return result;
     }
 
@@ -476,6 +624,17 @@ ImGuiNeoSequencerStyle::ImGuiNeoSequencerStyle() {
     Colors[ImGuiNeoSequencerCol_Keyframe] = ImVec4{0.59f, 0.59f, 0.59f, 0.50f};
     Colors[ImGuiNeoSequencerCol_KeyframeHovered] = ImVec4{0.98f, 0.39f, 0.36f, 1.00f};
     Colors[ImGuiNeoSequencerCol_KeyframePressed] = ImVec4{0.98f, 0.39f, 0.36f, 1.00f};
+
+    Colors[ImGuiNeoSequencerCol_FramePointerLine] = ImVec4{0.98f, 0.98f, 0.98f, 0.8f};
+
+    Colors[ImGuiNeoSequencerCol_ZoomBarBg] = ImVec4{0.59f, 0.59f, 0.59f, 0.90f};
+    Colors[ImGuiNeoSequencerCol_ZoomBarSlider] = ImVec4{0.98f, 0.98f, 0.98f, 0.60f};
+    Colors[ImGuiNeoSequencerCol_ZoomBarSliderEnds] = ImVec4{0.59f, 0.59f, 0.59f, 0.90f};
+
+
+
+
+
 
     /*
         style.Colors[ImGuiCol_WindowBg] = fixColor(ImVec4(0.94f, 0.94f, 0.94f, 0.94f));

@@ -17,6 +17,8 @@ enum ImGuiNeoSequencerFlags_
     ImGuiNeoSequencerFlags_None                 = 0     ,
     ImGuiNeoSequencerFlags_AllowLengthChanging  = 1 << 0,
     ImGuiNeoSequencerFlags_AllowSelection       = 1 << 1,
+    ImGuiNeoSequencerFlags_HideZoom             = 1 << 2,
+    ImGuiNeoSequencerFlags_ZoomBottomOverlay    = 1 << 3,
 
 };
 
@@ -41,6 +43,11 @@ enum ImGuiNeoSequencerCol_
     ImGuiNeoSequencerCol_Keyframe,
     ImGuiNeoSequencerCol_KeyframeHovered,
     ImGuiNeoSequencerCol_KeyframePressed,
+    ImGuiNeoSequencerCol_FramePointerLine,
+
+    ImGuiNeoSequencerCol_ZoomBarBg,
+    ImGuiNeoSequencerCol_ZoomBarSlider,
+    ImGuiNeoSequencerCol_ZoomBarSliderEnds,
     ImGuiNeoSequencerCol_COUNT
 };
 
@@ -55,6 +62,7 @@ struct ImGuiNeoSequencerStyle {
     float       TimelineBorderSize = 1.0f;
     float       CurrentFramePointerSize = 7.0f; // Size of pointing arrow above current frame line
     float       CurrentFrameLineWidth = 1.0f; // Width of line showing current frame over timeline
+    float       ZoomHeightScale = 1.0f;         // Scale of zoom bar, base height is font size
 
     ImVec4      Colors[ImGuiNeoSequencerCol_COUNT];
 

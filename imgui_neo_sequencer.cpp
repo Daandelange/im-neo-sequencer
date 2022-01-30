@@ -9,6 +9,7 @@
 
 #include <stack>
 #include <iostream>
+#include <unordered_map>
 
 namespace ImGui {
     struct ImGuiNeoSequencerInternalData {
@@ -67,7 +68,7 @@ namespace ImGui {
 
     static float getKeyframePositionX(uint32_t frame, ImGuiNeoSequencerInternalData &context) {
         const auto perFrameWidth = getPerFrameWidth(context);
-        return (frame - context.OffsetFrame) * perFrameWidth;
+        return (float)(frame - context.OffsetFrame) * perFrameWidth;
     }
 
     static float getWorkTimelineWidth(ImGuiNeoSequencerInternalData &context) {
@@ -121,7 +122,7 @@ namespace ImGui {
 
                 const auto clamped = ImClamp(normalized, 0.0f, 1.0f);
 
-                const auto viewSize = (context.EndFrame - context.StartFrame) / context.Zoom;
+                const auto viewSize = (float)(context.EndFrame - context.StartFrame) / context.Zoom;
 
                 const auto frameViewVal = (float) context.StartFrame + (clamped * (float) viewSize);
 
@@ -187,7 +188,7 @@ namespace ImGui {
         idBuffer[0] = '#';
         idBuffer[1] = '#';
         memset(idBuffer + 2, 0, 14);
-        sprintf_s(idBuffer + 2, 14, "%o", idCounter++);
+        snprintf(idBuffer + 2, 14, "%o", idCounter++);
 
         return &idBuffer[0];
     }
@@ -236,7 +237,7 @@ namespace ImGui {
 
         const ImVec2 frameNumberBorderSize{inputWidth - imStyle.FramePadding.x, zoomHeight};
 
-        const ImVec2 startFrameTextCursor{context.StartCursor + ImVec2{imStyle.FramePadding.x, 0}};
+        //const ImVec2 startFrameTextCursor{context.StartCursor + ImVec2{imStyle.FramePadding.x, 0}};
 
         // Text number borders
         //drawList->AddRect(startFrameTextCursor, startFrameTextCursor + frameNumberBorderSize,ColorConvertFloat4ToU32(GetStyleNeoSequencerColorVec4(ImGuiNeoSequencerCol_TimelineBorder)));
@@ -248,8 +249,8 @@ namespace ImGui {
                           zoomBarEndWithSpacing + frameNumberBorderSize,ColorConvertFloat4ToU32(GetStyleNeoSequencerColorVec4(ImGuiNeoSequencerCol_TimelineBorder)));
         */
 
-        int32_t startFrameVal = *start;
-        int32_t endFrameVal = *end;
+        int32_t startFrameVal = (int32_t)*start;
+        int32_t endFrameVal = (int32_t)*end;
 
         auto prevWindowCursor = window->DC.CursorPos;
 
@@ -266,13 +267,13 @@ namespace ImGui {
         window->DC.CursorPos = prevWindowCursor;
 
         if (startFrameVal < 0)
-            startFrameVal = *start;
+            startFrameVal = (int32_t)*start;
 
         if (endFrameVal < 0)
-            endFrameVal = *end;
+            endFrameVal = (int32_t)*end;
 
         if (endFrameVal <= startFrameVal)
-            endFrameVal = *end;
+            endFrameVal = (int32_t)*end;
 
         *start = startFrameVal;
         *end = endFrameVal;
@@ -293,7 +294,7 @@ namespace ImGui {
 
         const auto sliderMin = bb.Min + imStyle.ItemInnerSpacing / 2.0f;
 
-        const auto sliderMax = bb.Max - imStyle.ItemInnerSpacing / 2.0f;
+        //const auto sliderMax = bb.Max - imStyle.ItemInnerSpacing / 2.0f;
 
         const auto sliderMaxWidth = baseWidth;
 
@@ -314,7 +315,7 @@ namespace ImGui {
 
         const auto resBG = ItemAdd(bb, 0);
 
-        const auto viewWidth = (uint32_t)(totalFrames / context.Zoom);
+        const auto viewWidth = (uint32_t)((float)totalFrames / context.Zoom);
 
         if (resBG) {
             if (IsItemHovered()) {
@@ -322,7 +323,7 @@ namespace ImGui {
                 const float currentScroll = GetIO().MouseWheel;
 
                 context.Zoom = ImClamp(context.Zoom + currentScroll, 1.0f, (float) viewWidth);
-                const auto newZoomWidth = (uint32_t)(totalFrames / context.Zoom);
+                const auto newZoomWidth = (uint32_t)((float)totalFrames / context.Zoom);
 
                 if(*start + context.OffsetFrame + newZoomWidth > *end)
                     context.OffsetFrame = ImMax(0U, totalFrames - viewWidth);
@@ -338,11 +339,9 @@ namespace ImGui {
 
                     const auto sliderWidthNormalized = 1.0f / context.Zoom;
 
-                    uint32_t finalFrame = 0;
-
                     const auto singleFrameWidthOffsetNormalized = singleFrameWidthOffset / bb.GetWidth();
 
-                    finalFrame = (normalized - sliderWidthNormalized / 2.0f) / singleFrameWidthOffsetNormalized;
+                    uint32_t finalFrame = (uint32_t)((float)(normalized - sliderWidthNormalized / 2.0f) / singleFrameWidthOffsetNormalized);
 
                     if(normalized - sliderWidthNormalized / 2.0f < 0.0f) {
                         finalFrame = 0;
@@ -411,10 +410,10 @@ namespace ImGui {
         IM_ASSERT(!inSequencer && "Called when while in other NeoSequencer, that won't work, call End!");
         IM_ASSERT(*startFrame < *endFrame && "Start frame must be smaller than end frame");
 
-        ImGuiContext &g = *GImGui;
+        //ImGuiContext &g = *GImGui;
         ImGuiWindow *window = GetCurrentWindow();
         const auto &imStyle = GetStyle();
-        auto &neoStyle = GetNeoSequencerStyle();
+        //auto &neoStyle = GetNeoSequencerStyle();
 
         if (inSequencer)
             return false;
@@ -498,7 +497,7 @@ namespace ImGui {
         IM_ASSERT(sequencerData.count(currentSequencer) != 0 && "Ended sequencer has no context!");
 
         auto &context = sequencerData[currentSequencer];
-        auto &imStyle = GetStyle();
+        //auto &imStyle = GetStyle();
 
         renderCurrentFrame(context);
 
@@ -559,7 +558,7 @@ namespace ImGui {
 
     static bool timelineBehaviour(const ImGuiID id, const ImVec2 labelSize) {
         auto &context = sequencerData[currentSequencer];
-        ImGuiWindow *window = GetCurrentWindow();
+        //ImGuiWindow *window = GetCurrentWindow();
 
         const ImRect groupBB = {
                 context.ValuesCursor,
@@ -630,7 +629,7 @@ namespace ImGui {
         }
 
         for (uint32_t i = 0; i < keyframeCount; i++) {
-            bool keyframeRes = createKeyframe(keyframes[i]);
+            /*bool keyframeRes = */createKeyframe(keyframes[i]);
         }
 
         context.ValuesCursor.x += imStyle.FramePadding.x + (float) currentTimelineDepth * style.DepthItemSpacing;

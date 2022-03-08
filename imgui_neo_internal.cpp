@@ -6,6 +6,7 @@
 
 #include "imgui_neo_internal.h"
 #include "imgui_internal.h"
+#include <cstdint>
 
 namespace ImGui {
     void RenderNeoSequencerBackground(const ImVec4 &color, const ImVec2 & cursor, const ImVec2 &size, ImDrawList * drawList, float sequencerRounding) {
@@ -55,9 +56,11 @@ namespace ImGui {
                 drawList->AddLine(p1,p2, IM_COL32_WHITE, 1.0f);
 
                 if(drawFrameText && tenthFrame) {
-                    char text[5];
-                    snprintf(text, sizeof(text), "%u", viewStart + i);
-                    drawList->AddText(NULL, 0, {p1.x + 2.0f, barArea.Min.y }, IM_COL32_WHITE,text);
+                    char text[10];
+                    const auto printRes = snprintf(text, sizeof(text), "%u", viewStart + i);
+                    if(printRes > 0) {
+                        drawList->AddText(NULL, 0, {p1.x + 2.0f, barArea.Min.y }, IM_COL32_WHITE,text);
+                    }
                 }
             }
         }
@@ -106,19 +109,24 @@ namespace ImGui {
         return (size / (float)count) * zoom;
     }
 
-    static std::pair<ImVec2, ImVec2> getCurrentFrameLine(const ImRect & pointerBB, float timelineHeight) {
+    struct Vec2Pair {
+        ImVec2 a;
+        ImVec2 b;
+    };
+
+    static Vec2Pair getCurrentFrameLine(const ImRect & pointerBB, float timelineHeight) {
         const auto center = ImVec2{pointerBB.Min.x, pointerBB.Max.y} + ImVec2{pointerBB.GetSize().x / 2.0f, 0};
 
-        return std::make_pair(center, center + ImVec2{0, timelineHeight});
+        return Vec2Pair{ center, center + ImVec2{0, timelineHeight} };
     }
 
     void RenderNeoSequencerCurrentFrame(const ImVec4 &color, const ImVec4 &topColor, const ImRect &pointerBB,
                                                float timelineHeight, float lineWidth, ImDrawList *drawList) {
         if(!drawList) drawList = ImGui::GetWindowDrawList();
 
-        const auto [p0, p1] = getCurrentFrameLine(pointerBB, timelineHeight);
+        const auto pair = getCurrentFrameLine(pointerBB, timelineHeight);
 
-        drawList->AddLine(p0, p1, ColorConvertFloat4ToU32(color), lineWidth);
+        drawList->AddLine(pair.a, pair.b, ColorConvertFloat4ToU32(color), lineWidth);
 
         { //Top pointer has custom shape, we have to create it
             const auto size = pointerBB.GetSize();

@@ -7,6 +7,7 @@
 
 #include "imgui.h"
 #include "imgui_internal.h"
+#include <cstdint>
 
 namespace ImGui {
     IMGUI_API void  RenderNeoSequencerBackground(const ImVec4& color, const ImVec2 & cursor, const ImVec2& size, ImDrawList * drawList = nullptr, float sequencerRounding = 0.0f);

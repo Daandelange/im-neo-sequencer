@@ -20,8 +20,6 @@ namespace ImGui {
                                             ImDrawList *drawList, float sequencerRounding) {
         if(!drawList) drawList = ImGui::GetWindowDrawList();
 
-        const auto & style = GetStyle();
-
         const ImRect barArea = {cursor, cursor + size};
 
         drawList->AddRectFilled(barArea.Min, barArea.Max, ColorConvertFloat4ToU32(color), sequencerRounding);
@@ -41,7 +39,7 @@ namespace ImGui {
         const uint32_t viewStart = startFrame + offsetFrame;
 
         if(drawFrameLines) {
-            const auto count = ((viewEnd + 1) - viewStart) / zoom;
+            const auto count = (int32_t)((float)((viewEnd + 1) - viewStart) / zoom);
 
             const auto perFrameWidth = barArea.GetSize().x / (float)count;
 
@@ -58,7 +56,7 @@ namespace ImGui {
 
                 if(drawFrameText && tenthFrame) {
                     char text[5];
-                    itoa(viewStart + i, text, 10);
+                    snprintf(text, sizeof(text), "%u", viewStart + i);
                     drawList->AddText(NULL, 0, {p1.x + 2.0f, barArea.Min.y }, IM_COL32_WHITE,text);
                 }
             }
@@ -82,7 +80,7 @@ namespace ImGui {
     }
 
     void RenderNeoTimelinesBorder(const ImVec4 &color, const ImVec2 &cursor, const ImVec2 &size, ImDrawList *drawList,
-                                  float rounding, float borderSize) 
+                                  float rounding, float borderSize)
     {
         if(!drawList) drawList = ImGui::GetWindowDrawList();
 
@@ -131,7 +129,7 @@ namespace ImGui {
             pts[3] = pointerBB.Min + ImVec2{size.x / 2, size.y};
             pts[4] = pointerBB.Min + ImVec2{0, size.y * 0.85f};
 
-            drawList->AddConvexPolyFilled(pts, std::size(pts), ColorConvertFloat4ToU32(topColor));
+            drawList->AddConvexPolyFilled(pts, sizeof(pts) / sizeof(*pts), ColorConvertFloat4ToU32(topColor));
         }
     }
 }

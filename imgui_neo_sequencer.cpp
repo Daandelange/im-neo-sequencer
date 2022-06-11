@@ -430,7 +430,6 @@ namespace ImGui {
 		const auto area = ImGui::GetContentRegionAvail();
 
 		const auto cursorBasePos = GetCursorScreenPos() + window->Scroll;
-		const ImRect clip = { cursorBasePos, cursorBasePos + window->ContentRegionRect.GetSize() };
 
 		PushID(idin);
 		const auto id = window->IDStack[window->IDStack.size() - 1];
@@ -698,6 +697,21 @@ namespace ImGui {
 		}
 	}
 
+	void SetSelectedTimeline(const char *timelineLabel) {
+		IM_ASSERT(inSequencer && "Not in active sequencer!");
+
+		auto& context = sequencerData[currentSequencer];
+
+		ImGuiWindow* window = GetCurrentWindow();
+
+		ImGuiID timelineID = 0;
+
+		if(timelineLabel) {
+			timelineID = window->GetID(timelineLabel);
+		}
+
+		context.SelectedTimeline = timelineID;
+	}
 }
 
 ImGuiNeoSequencerStyle::ImGuiNeoSequencerStyle() {

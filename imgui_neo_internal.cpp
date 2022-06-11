@@ -42,7 +42,7 @@ namespace ImGui {
         if(drawFrameLines) {
             const auto count = (int32_t)((float)((viewEnd + 1) - viewStart) / zoom);
 
-            const auto perFrameWidth = barArea.GetSize().x / (float)count;
+            const auto perFrameWidth = GetPerFrameWidth(size.x, valuesWidth, endFrame, startFrame, zoom); 
 
             for(int32_t i = 0; i < count; i++) {
                 const ImVec2 p1 = {barArea.Min.x + (float)i * perFrameWidth, barArea.Max.y};

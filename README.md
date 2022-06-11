@@ -27,13 +27,13 @@ if(ImGui::BeginNeoSequencer("Sequencer", &currentFrame, &startFrame, &endFrame))
 To add timeline, you either use BeginNeoTimeline or if you want collapsable Timeline you can use BeginNeoGroup:
 
 ```cpp
-if(ImGui::BeginNeoGroup("Transform",&m_pTransformOpen)) {
-    std::vector<uint32_t> keys = {0, 10, 24};
-    if(ImGui::BeginNeoTimeline("Position", keys )) {
-        ImGui::EndNeoTimeLine();
-    }
-    ImGui::EndNeoTimeLine
-}
+    if(ImGui::BeginNeoGroup("Transform",&m_pTransformOpen)) {
+                std::vector<uint32_t> keys = {0, 10, 24};
+                if(ImGui::BeginNeoTimeline("Position", keys )) {
+                    ImGui::EndNeoTimeLine();
+                }
+                ImGui::EndNeoGroup();
+            }
 ```
 NOTE: There is C interface for BeginNeoTimeline, but I use C++ one for clarity.  
 NOTE: I'm planning on making im-neo-sequencer support for C soon, but now I'm using some C++ features in it (context is held in unordered_map)

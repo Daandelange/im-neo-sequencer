@@ -31,7 +31,10 @@ namespace ImGui {
 
 		float Zoom = 1.0f;
 
+		ImGuiID LastSelectedTimeline = 0;
 		ImGuiID SelectedTimeline = 0;
+
+		ImVector<ImGuiID> TimelineStack;
 
 		uint32_t CurrentFrame = 0;
 		bool HoldingCurrentFrame = false; // Are we draging current frame?
@@ -499,7 +502,9 @@ namespace ImGui {
 		IM_ASSERT(sequencerData.count(currentSequencer) != 0 && "Ended sequencer has no context!");
 
 		auto& context = sequencerData[currentSequencer];
-		//auto &imStyle = GetStyle();
+        IM_ASSERT(context.TimelineStack.empty() && "Missmatch in timeline Begin / End");
+
+		context.LastSelectedTimeline = context.SelectedTimeline;
 
 		renderCurrentFrame(context);
 
@@ -550,6 +555,7 @@ namespace ImGui {
 		const auto addGroupRes = ItemAdd(groupBB, id);
 		if (addGroupRes) {
 			if (IsItemClicked()) {
+				context.LastSelectedTimeline = context.SelectedTimeline;
 				context.SelectedTimeline = context.SelectedTimeline == id ? 0 : id;
 			}
 		}
@@ -570,6 +576,7 @@ namespace ImGui {
 		const auto addGroupRes = ItemAdd(groupBB, id);
 		if (addGroupRes) {
 			if (IsItemClicked()) {
+				context.LastSelectedTimeline = context.SelectedTimeline;
 				context.SelectedTimeline = context.SelectedTimeline == id ? 0 : id;
 			}
 		}
@@ -642,6 +649,7 @@ namespace ImGui {
 
 		if (result) {
 			currentTimelineDepth++;
+            context.TimelineStack.push_back(id);
 		}
 		else {
 			finishPreviousTimeline(context);
@@ -653,6 +661,7 @@ namespace ImGui {
 		auto& context = sequencerData[currentSequencer];
 		finishPreviousTimeline(context);
 		currentTimelineDepth--;
+        context.TimelineStack.pop_back();
 	}
 
 
@@ -709,8 +718,25 @@ namespace ImGui {
 		if(timelineLabel) {
 			timelineID = window->GetID(timelineLabel);
 		}
-
+		context.LastSelectedTimeline = context.SelectedTimeline;
 		context.SelectedTimeline = timelineID;
+	}
+
+	bool IsNeoTimelineSelected(ImGuiNeoTimelineIsSelectedFlags flags) {
+		IM_ASSERT(inSequencer && "Not in active sequencer!");
+        auto& context = sequencerData[currentSequencer];
+
+        IM_ASSERT(!context.TimelineStack.empty() && "No active timelines are present!");
+
+		const bool newly = flags & ImGuiNeoTimelineIsSelectedFlags_NewlySelected;
+
+        const auto openTimeline = context.TimelineStack[context.TimelineStack.size() - 1];
+
+		if(!newly) {
+			return context.SelectedTimeline == openTimeline;
+		}
+
+		return (context.SelectedTimeline != context.LastSelectedTimeline) && context.SelectedTimeline == openTimeline;
 	}
 }
 

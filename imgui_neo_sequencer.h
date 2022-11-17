@@ -21,7 +21,7 @@ enum ImGuiNeoSequencerFlags_
     ImGuiNeoSequencerFlags_AllowSelection       = 1 << 1,
     ImGuiNeoSequencerFlags_HideZoom             = 1 << 2,
     ImGuiNeoSequencerFlags_ZoomBottomOverlay    = 1 << 3,
-
+    ImGuiNeoSequencerFlags_AlwaysShowHeader    = 1 << 4,
 };
 
 // Flags for ImGui::BeginNeoTimeline()
@@ -106,7 +106,7 @@ namespace ImGui {
 
 #ifdef __cplusplus
     // C++ helper
-    IMGUI_API bool BeginNeoTimeline(const char* label,std::vector<uint32_t> & keyframes ,bool * open = nullptr);
+    IMGUI_API bool BeginNeoTimeline(const char* label,std::vector<uint32_t> & keyframes ,bool * open = nullptr, ImGuiNeoTimelineFlags flags = ImGuiNeoTimelineFlags_None);
 #endif
 }
 

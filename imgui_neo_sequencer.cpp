@@ -325,7 +325,7 @@ namespace ImGui {
 
 		if (resBG) {
 			if (IsItemHovered()) {
-				SetItemUsingMouseWheel();
+				SetItemKeyOwner(ImGuiKey_MouseWheelY);
 				const float currentScroll = GetIO().MouseWheel;
 
 				context.Zoom = ImClamp(context.Zoom + currentScroll, 1.0f, (float)viewWidth);

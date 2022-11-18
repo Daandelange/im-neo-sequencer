@@ -107,12 +107,11 @@ namespace ImGui {
                 timelineXmin + context.Size.x - context.ValuesWidth
         };
 
-        if (!ItemAdd(pointerRect, 0))
-            return;
+        const auto hovered = ItemHoverable(pointerRect, GetCurrentWindow()->GetID("##_top_selector_neo"));
 
         context.CurrentFrameColor = GetStyleNeoSequencerColorVec4(ImGuiNeoSequencerCol_FramePointer);
 
-        if (IsItemHovered()) {
+        if (hovered) {
             context.CurrentFrameColor = GetStyleNeoSequencerColorVec4(ImGuiNeoSequencerCol_FramePointerHovered);
         }
 
@@ -142,7 +141,7 @@ namespace ImGui {
             }
         }
 
-        if (IsItemClicked() && !context.HoldingCurrentFrame) {
+        if (hovered && IsMouseDown(ImGuiMouseButton_Left) && !context.HoldingCurrentFrame) {
             context.HoldingCurrentFrame = true;
             context.CurrentFrameColor = GetStyleNeoSequencerColorVec4(ImGuiNeoSequencerCol_FramePointerPressed);
         }
@@ -166,15 +165,15 @@ namespace ImGui {
 
         const auto bbPos = pos - ImVec2{currentTimelineHeight / 2, 0};
 
-        const ImRect bb = {bbPos, bbPos + ImVec2{currentTimelineHeight, currentTimelineHeight}};
 
-        if (!ItemAdd(bb, 0))
-            return false;
+        const ImRect bb = {bbPos, bbPos + ImVec2{currentTimelineHeight, currentTimelineHeight}};
 
         const auto drawList = ImGui::GetWindowDrawList();
 
+        bool hovered = ItemHoverable(bb, GetCurrentWindow()->GetID(frame));
+
         drawList->AddCircleFilled(pos + ImVec2{0, currentTimelineHeight / 2.f}, currentTimelineHeight / 3.0f,
-                                  IsItemHovered() ?
+                                  hovered ?
                                   ColorConvertFloat4ToU32(
                                           GetStyleNeoSequencerColorVec4(ImGuiNeoSequencerCol_KeyframeHovered)) :
                                   ColorConvertFloat4ToU32(GetStyleNeoSequencerColorVec4(ImGuiNeoSequencerCol_Keyframe)),
@@ -320,60 +319,59 @@ namespace ImGui {
         const ImRect finalSliderInteractBB = {finalSliderBB.Min + ImVec2{sideSize, 0},
                                               finalSliderBB.Max - ImVec2{sideSize, 0}};
 
-        const auto resBG = ItemAdd(bb, 0);
 
         const auto viewWidth = (uint32_t) ((float) totalFrames / context.Zoom);
 
-        if (resBG) {
-            if (IsItemHovered()) {
-                //TODO(matej vrba): Fix scrolling, this can be done by saving previous scroll value and assigning it back every frame
-                SetItemKeyOwner(ImGuiKey_MouseWheelY);
-                const float currentScroll = GetIO().MouseWheel;
+        const bool hovered = ItemHoverable(bb, GetCurrentWindow()->GetID("##zoom_slider"));
 
-                context.Zoom = ImClamp(context.Zoom + currentScroll, 1.0f, (float) viewWidth);
-                const auto newZoomWidth = (uint32_t) ((float) totalFrames / context.Zoom);
+        if (hovered) {
+            SetItemKeyOwner(ImGuiKey_MouseWheelY);
+            const float currentScroll = GetIO().MouseWheel;
 
-                if (*start + context.OffsetFrame + newZoomWidth > *end)
-                    context.OffsetFrame = ImMax(0U, totalFrames - viewWidth);
-            }
+            context.Zoom = ImClamp(context.Zoom + float(currentScroll) * 0.3f, 1.0f, (float) viewWidth);
+            const auto newZoomWidth = (uint32_t) ((float) totalFrames / (context.Zoom));
 
-            if (context.HoldingZoomSlider) {
-                if (IsMouseDragging(ImGuiMouseButton_Left, 0.01f)) {
-                    const auto currentX = GetMousePos().x;
+            if (*start + context.OffsetFrame + newZoomWidth > *end)
+                context.OffsetFrame = ImMax(0U, totalFrames - viewWidth);
+        }
 
-                    const auto v = currentX - bb.Min.x;// Subtract min
+        if (context.HoldingZoomSlider) {
+            if (IsMouseDragging(ImGuiMouseButton_Left, 0.01f)) {
+                const auto currentX = GetMousePos().x;
 
-                    const auto normalized = v / bb.GetWidth(); //Divide by width to remap to 0 - 1 range
+                const auto v = currentX - bb.Min.x;// Subtract min
 
-                    const auto sliderWidthNormalized = 1.0f / context.Zoom;
+                const auto normalized = v / bb.GetWidth(); //Divide by width to remap to 0 - 1 range
 
-                    const auto singleFrameWidthOffsetNormalized = singleFrameWidthOffset / bb.GetWidth();
+                const auto sliderWidthNormalized = 1.0f / context.Zoom;
 
-                    uint32_t finalFrame = (uint32_t) ((float) (normalized - sliderWidthNormalized / 2.0f) /
-                                                      singleFrameWidthOffsetNormalized);
+                const auto singleFrameWidthOffsetNormalized = singleFrameWidthOffset / bb.GetWidth();
 
-                    if (normalized - sliderWidthNormalized / 2.0f < 0.0f) {
-                        finalFrame = 0;
-                    }
+                uint32_t finalFrame = (uint32_t) ((float) (normalized - sliderWidthNormalized / 2.0f) /
+                                                  singleFrameWidthOffsetNormalized);
 
-
-                    if (normalized + sliderWidthNormalized / 2.0f > 1.0f) {
-                        finalFrame = totalFrames - viewWidth;
-                    }
-
-
-                    context.OffsetFrame = finalFrame;
+                if (normalized - sliderWidthNormalized / 2.0f < 0.0f) {
+                    finalFrame = 0;
                 }
 
-                if (!IsMouseDown(ImGuiMouseButton_Left)) {
-                    context.HoldingZoomSlider = false;
+
+                if (normalized + sliderWidthNormalized / 2.0f > 1.0f) {
+                    finalFrame = totalFrames - viewWidth;
                 }
+
+
+                context.OffsetFrame = finalFrame;
             }
 
-            if (IsItemClicked()) {
-                context.HoldingZoomSlider = true;
+            if (!IsMouseDown(ImGuiMouseButton_Left)) {
+                context.HoldingZoomSlider = false;
             }
         }
+
+        if (hovered && IsMouseDown(ImGuiMouseButton_Left)) {
+            context.HoldingZoomSlider = true;
+        }
+
 
         const auto res = ItemAdd(finalSliderInteractBB, 0);
 
@@ -531,6 +529,8 @@ namespace ImGui {
         const ImVec2 min = {0, 0};
         context.Size.y = context.FilledHeight;
         const auto max = context.Size;
+
+        const auto cursorPrev = GetCurrentWindow()->DC.CursorPos;
 
         ItemSize({min, max});
         PopID();

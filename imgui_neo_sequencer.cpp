@@ -211,6 +211,11 @@ namespace ImGui {
         );
     }
 
+    static float calculateZoomBarHeight() {
+        const auto &imStyle = GetStyle();
+        return GetFontSize() * style.ZoomHeightScale + imStyle.FramePadding.y * 2.0f;
+    }
+
     static void
     processAndRenderZoom(ImGuiNeoSequencerInternalData &context, const ImVec2 &cursor, bool allowEditingLength,
                          uint32_t *start,
@@ -218,7 +223,7 @@ namespace ImGui {
         const auto &imStyle = GetStyle();
         ImGuiWindow *window = GetCurrentWindow();
 
-        const auto zoomHeight = GetFontSize() * style.ZoomHeightScale;
+        const auto zoomHeight = calculateZoomBarHeight();
 
         auto *drawList = GetWindowDrawList();
 
@@ -236,32 +241,26 @@ namespace ImGui {
 
         const ImRect bb{cursorV, cursorV + ImVec2{size, zoomHeight}};
 
-        const ImVec2 frameNumberBorderSize{inputWidth - imStyle.FramePadding.x, zoomHeight};
-
-        //const ImVec2 startFrameTextCursor{context.StartCursor + ImVec2{imStyle.FramePadding.x, 0}};
-
-        // Text number borders
-        //drawList->AddRect(startFrameTextCursor, startFrameTextCursor + frameNumberBorderSize,ColorConvertFloat4ToU32(GetStyleNeoSequencerColorVec4(ImGuiNeoSequencerCol_TimelineBorder)));
 
         const auto zoomBarEndWithSpacing = ImVec2{bb.Max.x + imStyle.ItemSpacing.x, bb.Min.y};
-
-        /*
-        drawList->AddRect(zoomBarEndWithSpacing,
-                          zoomBarEndWithSpacing + frameNumberBorderSize,ColorConvertFloat4ToU32(GetStyleNeoSequencerColorVec4(ImGuiNeoSequencerCol_TimelineBorder)));
-        */
 
         int32_t startFrameVal = (int32_t) *start;
         int32_t endFrameVal = (int32_t) *end;
 
         if (allowEditingLength) {
-
+            const float sideOffset = imStyle.ItemSpacing.x / 2.0f;
             auto prevWindowCursor = window->DC.CursorPos;
+
+            window->DC.CursorPos = cursor;
+
+            window->DC.CursorPos.x += sideOffset;
 
             PushItemWidth(inputWidth);
             InputScalar("##input_start_frame", ImGuiDataType_U32, &startFrameVal, NULL, NULL, NULL,
                         allowEditingLength ? 0 : ImGuiInputTextFlags_ReadOnly);
 
-            window->DC.CursorPos = ImVec2{zoomBarEndWithSpacing.x, prevWindowCursor.y};
+            window->DC.CursorPos = ImVec2{zoomBarEndWithSpacing.x, cursor.y};
+            window->DC.CursorPos.x -= sideOffset;
 
             PushItemWidth(inputWidth);
             InputScalar("##input_end_frame", ImGuiDataType_U32, &endFrameVal, NULL, NULL, NULL,
@@ -327,7 +326,7 @@ namespace ImGui {
             const float currentScroll = GetIO().MouseWheel;
 
             context.Zoom = ImClamp(context.Zoom + float(currentScroll) * 0.3f, 1.0f, (float) viewWidth);
-            const auto newZoomWidth = (uint32_t) ((float) totalFrames / (context.Zoom));
+            const auto newZoomWidth = (uint32_t)ceil((float) totalFrames / (context.Zoom));
 
             if (*start + context.OffsetFrame + newZoomWidth > *end)
                 context.OffsetFrame = ImMax(0U, totalFrames - viewWidth);
@@ -453,7 +452,7 @@ namespace ImGui {
 
         // If Zoom is shown, we offset it by height of Zoom bar + padding
         context.TopBarStartCursor = showZoom ? context.TopLeftCursor +
-                                               ImVec2{0, GetFontSize() * style.ZoomHeightScale + imStyle.FramePadding.y}
+                                               ImVec2{0, calculateZoomBarHeight()}
                                              : context.TopLeftCursor;
         context.StartFrame = *startFrame;
         context.EndFrame = *endFrame;
@@ -493,11 +492,11 @@ namespace ImGui {
             context.Size.y = context.FilledHeight;
 
         context.FilledHeight = context.TopBarSize.y + style.TopBarSpacing +
-                               (showZoom ? imStyle.FramePadding.y + style.ZoomHeightScale + GetFontSize() : 0.0f);
+                               (showZoom ? calculateZoomBarHeight() : 0.0f);
 
         context.StartValuesCursor = cursor + ImVec2{0, context.TopBarSize.y + style.TopBarSpacing};
         if (showZoom)
-            context.StartValuesCursor = context.StartValuesCursor + ImVec2{0, GetFontSize() * style.ZoomHeightScale};
+            context.StartValuesCursor = context.StartValuesCursor + ImVec2{0, calculateZoomBarHeight()};
         context.ValuesCursor = context.StartValuesCursor;
 
         processCurrentFrame(frame, context);

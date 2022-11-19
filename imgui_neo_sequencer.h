@@ -18,9 +18,9 @@ enum ImGuiNeoSequencerFlags_
 {
     ImGuiNeoSequencerFlags_None                 = 0     ,
     ImGuiNeoSequencerFlags_AllowLengthChanging  = 1 << 0,
-    ImGuiNeoSequencerFlags_AllowSelection       = 1 << 1,
+    //ImGuiNeoSequencerFlags_AllowSelection       = 1 << 1,
     ImGuiNeoSequencerFlags_HideZoom             = 1 << 2,
-    ImGuiNeoSequencerFlags_ZoomBottomOverlay    = 1 << 3,
+    //ImGuiNeoSequencerFlags_ZoomBottomOverlay    = 1 << 3,
     ImGuiNeoSequencerFlags_AlwaysShowHeader    = 1 << 4,
 };
 

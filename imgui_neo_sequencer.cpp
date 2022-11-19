@@ -325,7 +325,7 @@ namespace ImGui {
         const bool hovered = ItemHoverable(bb, GetCurrentWindow()->GetID("##zoom_slider"));
 
         if (hovered) {
-            SetItemKeyOwner(ImGuiKey_MouseWheelY);
+            SetKeyOwner(ImGuiKey_MouseWheelY, GetItemID());
             const float currentScroll = GetIO().MouseWheel;
 
             context.Zoom = ImClamp(context.Zoom + float(currentScroll) * 0.3f, 1.0f, (float) viewWidth);

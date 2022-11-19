@@ -7,8 +7,6 @@
 #include "imgui_internal.h"
 #include "imgui_neo_internal.h"
 
-#include <stack>
-#include <iostream>
 #include <unordered_map>
 
 namespace ImGui {

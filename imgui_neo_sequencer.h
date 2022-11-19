@@ -18,7 +18,7 @@ enum ImGuiNeoSequencerFlags_
 {
     ImGuiNeoSequencerFlags_None                 = 0     ,
     ImGuiNeoSequencerFlags_AllowLengthChanging  = 1 << 0,
-    //ImGuiNeoSequencerFlags_AllowSelection       = 1 << 1,
+    ImGuiNeoSequencerFlags_EnableSelection       = 1 << 1,
     ImGuiNeoSequencerFlags_HideZoom             = 1 << 2,
     //ImGuiNeoSequencerFlags_ZoomBottomOverlay    = 1 << 3,
     ImGuiNeoSequencerFlags_AlwaysShowHeader    = 1 << 4,
@@ -59,6 +59,10 @@ enum ImGuiNeoSequencerCol_
     ImGuiNeoSequencerCol_ZoomBarSliderHovered,
     ImGuiNeoSequencerCol_ZoomBarSliderEnds,
     ImGuiNeoSequencerCol_ZoomBarSliderEndsHovered,
+
+    ImGuiNeoSequencerCol_SelectionBorder,
+    ImGuiNeoSequencerCol_Selection,
+
     ImGuiNeoSequencerCol_COUNT
 };
 
@@ -96,6 +100,20 @@ namespace ImGui {
 
     IMGUI_API bool BeginNeoTimeline(const char* label,uint32_t ** keyframes, uint32_t keyframeCount, bool * open = nullptr, ImGuiNeoTimelineFlags flags = ImGuiNeoTimelineFlags_None);
     IMGUI_API void EndNeoTimeLine(); //Call only when BeginNeoTimeline() returns true!!
+
+    // Selection API
+    // Clears selection
+    IMGUI_API void NeoClearSelection();
+    IMGUI_API bool NeoIsSelecting();
+    IMGUI_API bool NeoHasSelection();
+    IMGUI_API bool NeoIsDraggingSelection();
+
+
+    // Deletion API
+    // Order is generally: IsRequested? -> How many? -> GetData()
+    IMGUI_API bool IsNeoKeyframeRemoveRequested();
+    IMGUI_API uint32_t GetNeoKeyframeRemoveCount();
+    IMGUI_API void GetNeoKeyframeRemoveCount(uint32_t * framesToDelete);
 
     // Sets currently selected timeline inside BeginNeoSequencer scope
     IMGUI_API void SetSelectedTimeline(const char* timelineLabel);

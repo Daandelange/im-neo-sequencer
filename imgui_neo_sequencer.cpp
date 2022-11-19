@@ -10,6 +10,17 @@
 #include <unordered_map>
 
 namespace ImGui {
+    struct ImGuiNeoSequencerSelectedKeyframe {
+        ImGuiID Timeline;
+        int32_t Index;
+    };
+
+    enum class SelectionState {
+        Idle, // Doing nothing related
+        Selecting,  // Selecting selection
+        Dragging    // Dragging selection
+    };
+
     struct ImGuiNeoSequencerInternalData {
         ImVec2 TopLeftCursor = {0, 0};   // Cursor on top of whole widget
         ImVec2 TopBarStartCursor = {0, 0}; // Cursor on top, below Zoom slider
@@ -29,6 +40,8 @@ namespace ImGui {
 
         float Zoom = 1.0f;
 
+        ImGuiID Id;
+
         ImGuiID LastSelectedTimeline = 0;
         ImGuiID SelectedTimeline = 0;
 
@@ -39,6 +52,11 @@ namespace ImGui {
         ImVec4 CurrentFrameColor; // Color of current frame, we have to save it because we render on EndNeoSequencer, but process at BeginneoSequencer
 
         bool HoldingZoomSlider = false;
+
+        //Selection
+        ImVector<ImGuiNeoSequencerSelectedKeyframe> Selection;
+        ImVec2 SelectionMouseStart = {0, 0};
+        SelectionState SelectionState = SelectionState::Idle;
     };
 
     static ImGuiNeoSequencerStyle style; // NOLINT(cert-err58-cpp)
@@ -326,7 +344,7 @@ namespace ImGui {
             const float currentScroll = GetIO().MouseWheel;
 
             context.Zoom = ImClamp(context.Zoom + float(currentScroll) * 0.3f, 1.0f, (float) viewWidth);
-            const auto newZoomWidth = (uint32_t)ceil((float) totalFrames / (context.Zoom));
+            const auto newZoomWidth = (uint32_t) ceil((float) totalFrames / (context.Zoom));
 
             if (*start + context.OffsetFrame + newZoomWidth > *end)
                 context.OffsetFrame = ImMax(0U, totalFrames - viewWidth);
@@ -397,6 +415,73 @@ namespace ImGui {
             drawList->AddText(sliderCenter - overlaySize / 2.0f, IM_COL32_WHITE, overlayTextBuffer);
         }
     }
+
+    static void processSelection(ImGuiNeoSequencerInternalData &context) {
+        if (IsMouseDown(ImGuiMouseButton_Left)) {
+            // Not dragging yet
+            switch (context.SelectionState) {
+                case SelectionState::Idle: {
+                    SetKeyOwner(MouseButtonToKey(ImGuiMouseButton_Left), context.Id);
+
+                    context.SelectionMouseStart = GetMousePos();
+                    context.SelectionState = SelectionState::Selecting;
+                    break;
+                }
+                case SelectionState::Selecting:
+                {
+                    //TODO: Calculate intersection
+                    break;
+                }
+                case SelectionState::Dragging: {
+
+                    break;
+                }
+            }
+        }
+        else {
+            switch (context.SelectionState) {
+                case SelectionState::Idle: {
+                    break;
+                }
+                case SelectionState::Selecting:
+                {
+                    context.SelectionMouseStart = {0,0};
+                    context.SelectionState = SelectionState::Idle;
+                    break;
+                }
+                case SelectionState::Dragging: {
+
+                    break;
+                }
+            }
+        }
+    }
+
+    static void renderSelection(ImGuiNeoSequencerInternalData &context) {
+        if (context.SelectionState != SelectionState::Selecting) {
+            return;
+        }
+        const ImVec2 currentMousePosition = GetMousePos();
+
+        auto *drawList = GetWindowDrawList();
+
+        // Inner
+        drawList->AddRectFilled(
+                context.SelectionMouseStart,
+                currentMousePosition,
+                ColorConvertFloat4ToU32(style.Colors[ImGuiNeoSequencerCol_Selection])
+        );
+
+        // border
+        drawList->AddRect(
+                context.SelectionMouseStart,
+                currentMousePosition,
+                ColorConvertFloat4ToU32(style.Colors[ImGuiNeoSequencerCol_SelectionBorder]),
+                0.0f,
+                0,
+                0.5f
+        );
+    }
     ////////////////////////////////////
 
     const ImVec4 &GetStyleNeoSequencerColorVec4(ImGuiNeoSequencerCol idx) {
@@ -438,6 +523,7 @@ namespace ImGui {
         inSequencer = true;
 
         auto &context = sequencerData[id];
+        context.Id = id;
 
         auto realSize = ImFloor(size);
         if (realSize.x <= 0.0f)
@@ -447,6 +533,7 @@ namespace ImGui {
 
         const bool showZoom = !(flags & ImGuiNeoSequencerFlags_HideZoom);
         const bool headerAlwaysVisible = (flags & ImGuiNeoSequencerFlags_AlwaysShowHeader);
+        const bool enableSelection = (flags & ImGuiNeoSequencerFlags_EnableSelection);
 
         context.TopLeftCursor = headerAlwaysVisible ? cursorBasePos : cursor;
 
@@ -501,6 +588,9 @@ namespace ImGui {
 
         processCurrentFrame(frame, context);
 
+        if (enableSelection)
+            processSelection(context);
+
         const auto clipMin = context.TopBarStartCursor + ImVec2(0, context.TopBarSize.y);
 
         drawList->PushClipRect(clipMin,
@@ -518,6 +608,8 @@ namespace ImGui {
         IM_ASSERT(context.TimelineStack.empty() && "Missmatch in timeline Begin / End");
 
         context.LastSelectedTimeline = context.SelectedTimeline;
+
+        renderSelection(context);
 
         renderCurrentFrame(context);
 
@@ -752,6 +844,13 @@ namespace ImGui {
 
         return (context.SelectedTimeline != context.LastSelectedTimeline) && context.SelectedTimeline == openTimeline;
     }
+
+    void ClearSelection() {
+        IM_ASSERT(inSequencer && "Not in active sequencer!");
+        auto &context = sequencerData[currentSequencer];
+
+        context.SelectionState = SelectionState::Idle;
+    }
 }
 
 ImGuiNeoSequencerStyle::ImGuiNeoSequencerStyle() {
@@ -776,5 +875,8 @@ ImGuiNeoSequencerStyle::ImGuiNeoSequencerStyle() {
     Colors[ImGuiNeoSequencerCol_ZoomBarSliderHovered] = ImVec4{0.98f, 0.98f, 0.98f, 0.80f};
     Colors[ImGuiNeoSequencerCol_ZoomBarSliderEnds] = ImVec4{0.59f, 0.59f, 0.59f, 0.90f};
     Colors[ImGuiNeoSequencerCol_ZoomBarSliderEndsHovered] = ImVec4{0.93f, 0.93f, 0.93f, 0.93f};
+
+    Colors[ImGuiNeoSequencerCol_SelectionBorder] = ImVec4{0.98f, 0.706f, 0.322f, 0.61f};
+    Colors[ImGuiNeoSequencerCol_Selection] = ImVec4{0.98f, 0.706f, 0.322f, 0.33f};
 
 }

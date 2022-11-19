@@ -128,6 +128,8 @@ namespace ImGui {
 
         drawList->AddLine(pair.a, pair.b, ColorConvertFloat4ToU32(color), lineWidth);
 
+        drawList->PopClipRect();
+
         { //Top pointer has custom shape, we have to create it
             const auto size = pointerBB.GetSize();
             ImVec2 pts[5];

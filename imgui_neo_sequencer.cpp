@@ -71,7 +71,7 @@ namespace ImGui {
         bool IsLastKeyframeRightClicked = false;
 
         //Deletion
-        bool DeleteRequested = false;
+        bool DeleteDataDirty = false;
         bool DeleteEnabled = true;
         ImVector<ImGuiNeoTimelineKeyframes> DeleteData;
     };
@@ -198,9 +198,33 @@ namespace ImGui {
                ColorConvertFloat4ToU32(GetStyleNeoSequencerColorVec4(ImGuiNeoSequencerCol_Keyframe));
     }
 
+    static void addKeyframeToDeleteData(int32_t value, ImGuiNeoSequencerInternalData &context, const ImGuiID timelineId) {
+        bool foundTimeline = false;
+        for(auto && val : context.DeleteData) {
+            if(val.TimelineID == timelineId) {
+                foundTimeline = true;
+                if (!val.KeyframesToDelete.contains(value))
+                    val.KeyframesToDelete.push_back(value);
+                break;
+            }
+        }
+
+        if(!foundTimeline) {
+            context.DeleteData.push_back({});
+            auto & data = context.DeleteData.back();
+            data.TimelineID = timelineId;
+            data.KeyframesToDelete.push_back(value);
+        }
+    }
+
     static bool getKeyframeInSelection(int32_t value,ImGuiID id, ImGuiNeoSequencerInternalData &context, const ImRect bb) {
         //TODO(matej.vrba): This is kinda slow, it works for smaller data sample, but for bigger sample it should be changed to hashset
         const ImGuiID timelineId = context.TimelineStack.back();
+
+        if (context.DeleteDataDirty && context.Selection.contains(id)) {
+            addKeyframeToDeleteData(value, context, timelineId);
+        }
+
         if (context.SelectionState != SelectionState::Selecting) {
             return context.Selection.contains(id);
         }
@@ -209,22 +233,7 @@ namespace ImGui {
 
         if (overlaps) {
             if (!context.Selection.contains(id)) {
-                bool foundTimeline = false;
-                for(auto && val : context.DeleteData) {
-                    if(val.TimelineID == timelineId) {
-                        foundTimeline = true;
-                        if (!val.KeyframesToDelete.contains(value))
-                            val.KeyframesToDelete.push_back(value);
-                        break;
-                    }
-                }
-
-                if(!foundTimeline) {
-                    context.DeleteData.push_back({});
-                    auto & data = context.DeleteData.back();
-                    data.TimelineID = timelineId;
-                    data.KeyframesToDelete.push_back(value);
-                }
+                addKeyframeToDeleteData(value, context, timelineId);
 
                 context.Selection.push_back(id);
             }
@@ -529,6 +538,8 @@ namespace ImGui {
     }
 
     static void processSelection(ImGuiNeoSequencerInternalData &context) {
+        context.DeleteDataDirty = false;
+
         if (context.StartDragging) {
             context.SelectionState = SelectionState::Dragging;
             context.DraggingMouseStart = GetMousePos();
@@ -571,6 +582,9 @@ namespace ImGui {
                     context.DraggingSelectionStart.resize(0);
                     context.SelectionState = SelectionState::Idle;
                     context.DraggingMouseStart = {0, 0};
+                    context.DeleteDataDirty = true;
+                    for(auto && t : context.DeleteData)
+                        t.KeyframesToDelete.resize(0);
                     break;
                 }
             }

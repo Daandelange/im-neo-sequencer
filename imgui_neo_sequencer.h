@@ -124,7 +124,7 @@ namespace ImGui {
     IMGUI_API bool NeoIsSelecting(); // Are we currently selecting?
     IMGUI_API bool NeoHasSelection(); // Is anything selected?
     IMGUI_API bool NeoIsDraggingSelection(); // Are we dragging selection?
-    IMGUI_API inline bool NeoCanDeleteSelection() { return NeoHasSelection() && !NeoIsSelecting() && !NeoIsDraggingSelection(); } // Can selection deletion be done?
+    IMGUI_API bool NeoCanDeleteSelection(); // Can selection deletion be done?
     IMGUI_API bool IsNeoKeyframeSelectionRightClicked(); // Is selection rightclicked?
 
     // Call only in BeginNeoTimeline / EndNeoTimeLine scope, returns selection per timeline and size per timeline

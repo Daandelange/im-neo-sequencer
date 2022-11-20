@@ -603,6 +603,12 @@ namespace ImGui {
 
         auto *drawList = GetWindowDrawList();
 
+        ImRect sel{context.SelectionMouseStart,
+                   currentMousePosition};
+
+        if(sel.GetArea() < 32.0f)
+            return;
+
         // Inner
         drawList->AddRectFilled(
                 context.SelectionMouseStart,
@@ -1121,6 +1127,13 @@ namespace ImGui {
         auto &context = sequencerData[currentSequencer];
 
         return context.IsSelectionRightClicked;
+    }
+
+    bool NeoCanDeleteSelection() {
+        IM_ASSERT(inSequencer && "Not in active sequencer!");
+        auto &context = sequencerData[currentSequencer];
+
+        return context.DeleteEnabled && NeoHasSelection() && !NeoIsSelecting() && !NeoIsDraggingSelection();
     }
 }
 

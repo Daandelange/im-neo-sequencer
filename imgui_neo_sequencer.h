@@ -20,7 +20,7 @@ enum ImGuiNeoSequencerFlags_
     ImGuiNeoSequencerFlags_AllowLengthChanging  = 1 << 0, // Allows changing length of sequence
     ImGuiNeoSequencerFlags_EnableSelection      = 1 << 1, // Enables selection of keyframes
     ImGuiNeoSequencerFlags_HideZoom             = 1 << 2, // Disables zoom bar
-    ImGuiNeoSequencerFlags_EditDataInPlace      = 1 << 3, // When enabled, you dont have to use editing query, instead the data you pass is edited
+    //ImGuiNeoSequencerFlags_PH                 = 1 << 3, // PLACEHOLDER
     ImGuiNeoSequencerFlags_AlwaysShowHeader     = 1 << 4, // Enables overlay header, keeping it visible when scrolling
 
     // Selection options, only work with enable selection flag
@@ -104,12 +104,12 @@ namespace ImGui {
     IMGUI_API bool BeginNeoGroup(const char* label, bool* open = nullptr);
     IMGUI_API void EndNeoGroup();
 
-    IMGUI_API bool BeginNeoTimeline(const char* label,uint32_t ** keyframes, uint32_t keyframeCount, bool * open = nullptr, ImGuiNeoTimelineFlags flags = ImGuiNeoTimelineFlags_None);
+    IMGUI_API bool BeginNeoTimeline(const char* label,int32_t ** keyframes, uint32_t keyframeCount, bool * open = nullptr, ImGuiNeoTimelineFlags flags = ImGuiNeoTimelineFlags_None);
     IMGUI_API void EndNeoTimeLine(); //Call only when BeginNeoTimeline() returns true!!
 
     // Fully customizable timeline with per key callback
     IMGUI_API bool BeginNeoTimelineEx(const char* label, bool * open = nullptr, ImGuiNeoTimelineFlags flags = ImGuiNeoTimelineFlags_None);
-    IMGUI_API void NeoKeyframe(uint32_t* value);
+    IMGUI_API void NeoKeyframe(int32_t* value);
 
     IMGUI_API bool IsNeoKeyframeHovered();
     IMGUI_API bool IsNeoKeyframeSelected();
@@ -124,23 +124,22 @@ namespace ImGui {
 
 
     // Deletion API
-    // Order is generally: IsRequested? -> How many? -> GetData()
-    IMGUI_API bool IsNeoKeyframeSelectionRemoveRequested();
+    // Deletion is processed per timeline
+    // DON'T delete keyframes while dragging, internal buffer will get corrupted
+    // Order is generally: IsDragging? No. -> How many? -> GetData() -> Delete your data -> ClearSelection()
     IMGUI_API uint32_t GetNeoKeyframeSelectionRemoveCount();
-    IMGUI_API void GetNeoKeyframeSelectionRemoveData(uint32_t * framesToDelete);
-    IMGUI_API void NeoClearKeyframeSelectionRemoveRequest(); // Call after fetching selection remove data
-    IMGUI_API void NeoRequestKeyframeSelectionRemove(); // Call in BeginNeoSequencer / EndNeoSequencer scope
+    IMGUI_API void GetNeoKeyframeSelectionRemoveData(int32_t * framesToDelete);
 
     // Sets currently selected timeline inside BeginNeoSequencer scope
     IMGUI_API void SetSelectedTimeline(const char* timelineLabel);
 
     IMGUI_API bool IsNeoTimelineSelected(ImGuiNeoTimelineIsSelectedFlags flags = ImGuiNeoTimelineIsSelectedFlags_None);
 
-    IMGUI_API bool NeoBeginCreateKeyframe(uint32_t * frame);
+    IMGUI_API bool NeoBeginCreateKeyframe(int32_t * frame);
 
 #ifdef __cplusplus
     // C++ helper
-    IMGUI_API bool BeginNeoTimeline(const char* label,std::vector<uint32_t> & keyframes ,bool * open = nullptr, ImGuiNeoTimelineFlags flags = ImGuiNeoTimelineFlags_None);
+    IMGUI_API bool BeginNeoTimeline(const char* label,std::vector<int32_t> & keyframes ,bool * open = nullptr, ImGuiNeoTimelineFlags flags = ImGuiNeoTimelineFlags_None);
 #endif
 }
 

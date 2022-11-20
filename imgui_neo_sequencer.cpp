@@ -10,6 +10,11 @@
 #include <unordered_map>
 
 namespace ImGui {
+    // Internal state, used for deletion of old keyframes.
+    struct ImGuiNeoTimelineKeyframes {
+        ImGuiID TimelineID;
+        ImVector<int32_t> KeyframesToDelete;
+    };
 
     enum class SelectionState {
         Idle, // Doing nothing related
@@ -57,6 +62,8 @@ namespace ImGui {
         ImVec2 DraggingMouseStart = {0, 0};
         bool StartDragging = true;
         ImVector<int32_t> DraggingSelectionStart; // Contains start values of all selection elements
+        bool DraggingEnabled = true;
+        bool SelectionEnabled = true;
 
         //Last keyframe data
         bool IsLastKeyframeHovered = false;
@@ -65,6 +72,8 @@ namespace ImGui {
 
         //Deletion
         bool DeleteRequested = false;
+        bool DeleteEnabled = true;
+        ImVector<ImGuiNeoTimelineKeyframes> DeleteData;
     };
 
     static ImGuiNeoSequencerStyle style; // NOLINT(cert-err58-cpp)
@@ -189,9 +198,9 @@ namespace ImGui {
                ColorConvertFloat4ToU32(GetStyleNeoSequencerColorVec4(ImGuiNeoSequencerCol_Keyframe));
     }
 
-    static bool getKeyframeInSelection(ImGuiID id, ImGuiNeoSequencerInternalData &context, const ImRect bb) {
+    static bool getKeyframeInSelection(int32_t value,ImGuiID id, ImGuiNeoSequencerInternalData &context, const ImRect bb) {
         //TODO(matej.vrba): This is kinda slow, it works for smaller data sample, but for bigger sample it should be changed to hashset
-
+        const ImGuiID timelineId = context.TimelineStack.back();
         if (context.SelectionState != SelectionState::Selecting) {
             return context.Selection.contains(id);
         }
@@ -200,20 +209,43 @@ namespace ImGui {
 
         if (overlaps) {
             if (!context.Selection.contains(id)) {
+                bool foundTimeline = false;
+                for(auto && val : context.DeleteData) {
+                    if(val.TimelineID == timelineId) {
+                        foundTimeline = true;
+                        if (!val.KeyframesToDelete.contains(value))
+                            val.KeyframesToDelete.push_back(value);
+                        break;
+                    }
+                }
+
+                if(!foundTimeline) {
+                    context.DeleteData.push_back({});
+                    auto & data = context.DeleteData.back();
+                    data.TimelineID = timelineId;
+                    data.KeyframesToDelete.push_back(value);
+                }
+
                 context.Selection.push_back(id);
             }
         } else {
+            for(auto && val : context.DeleteData) {
+                if(val.TimelineID == timelineId) {
+                    val.KeyframesToDelete.find_erase(value);
+                    break;
+                }
+            }
             context.Selection.find_erase(id);
         }
 
         return overlaps;
     }
 
-    static ImGuiID getKeyframeID(uint32_t *frame) {
+    static ImGuiID getKeyframeID(int32_t *frame) {
         return GetCurrentWindow()->GetID(frame);
     }
 
-    static bool createKeyframe(uint32_t *frame) {
+    static bool createKeyframe(int32_t *frame) {
         const auto &imStyle = GetStyle();
         auto &context = sequencerData[currentSequencer];
 
@@ -233,9 +265,12 @@ namespace ImGui {
 
         bool hovered = ItemHoverable(bb, id);
 
-        if (context.Selection.contains(id) && (context.SelectionState != SelectionState::Selecting)) {
+        if (context.SelectionEnabled && context.Selection.contains(id) &&
+            (context.SelectionState != SelectionState::Selecting)) {
             // process dragging
-            if (bb.Contains(GetMousePos()) && IsMouseDown(ImGuiMouseButton_Left) && context.SelectionState != SelectionState::Dragging) {
+            if (bb.Contains(GetMousePos()) && IsMouseDown(ImGuiMouseButton_Left) &&
+                context.SelectionState != SelectionState::Dragging &&
+                context.DraggingEnabled) {
                 //Start dragging
                 context.StartDragging = true;
             }
@@ -246,8 +281,7 @@ namespace ImGui {
                 int32_t index = context.Selection.index_from_ptr(it);
 
                 if (context.DraggingSelectionStart.size() < index + 1 || context.DraggingSelectionStart[index] == -1) {
-                    if (context.DraggingSelectionStart.size() < index + 1)
-                    {
+                    if (context.DraggingSelectionStart.size() < index + 1) {
                         context.DraggingSelectionStart.resize(index + 1, -1);
                     }
 
@@ -255,13 +289,13 @@ namespace ImGui {
                 }
                 float mouseDelta = GetMousePos().x - context.DraggingMouseStart.x;
 
-                int32_t offset = int32_t(mouseDelta / (context.Size.x / context.EndFrame - context.StartFrame) );
+                int32_t offset = int32_t(mouseDelta / (context.Size.x / context.EndFrame - context.StartFrame));
 
                 *frame = context.DraggingSelectionStart[index] + offset;
             }
         }
 
-        const bool inSelection = getKeyframeInSelection(id, context, bb);
+        const bool inSelection = getKeyframeInSelection(*frame,id, context, bb);
 
         context.IsLastKeyframeSelected = inSelection;
 
@@ -508,7 +542,7 @@ namespace ImGui {
             // Not dragging yet
             switch (context.SelectionState) {
                 case SelectionState::Idle: {
-                    if(!IsMouseClicked(ImGuiMouseButton_Left)) return;
+                    if (!IsMouseClicked(ImGuiMouseButton_Left)) return;
                     SetKeyOwner(MouseButtonToKey(ImGuiMouseButton_Left), context.Id);
 
                     context.SelectionMouseStart = GetMousePos();
@@ -534,7 +568,7 @@ namespace ImGui {
                     break;
                 }
                 case SelectionState::Dragging: {
-                    context.DraggingSelectionStart.clear();
+                    context.DraggingSelectionStart.resize(0);
                     context.SelectionState = SelectionState::Idle;
                     context.DraggingMouseStart = {0, 0};
                     break;
@@ -644,18 +678,18 @@ namespace ImGui {
         IM_ASSERT(!inSequencer && "Called when while in other NeoSequencer, that won't work, call End!");
         IM_ASSERT(*startFrame < *endFrame && "Start frame must be smaller than end frame");
 
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {0.0f,0.0f});
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {0.0f, 0.0f});
         static char childNameStorage[64];
-        snprintf(childNameStorage,sizeof(childNameStorage), "##%s_child_wrapper", idin);
+        snprintf(childNameStorage, sizeof(childNameStorage), "##%s_child_wrapper", idin);
         const bool openChild = BeginChild(childNameStorage);
 
-        if(!openChild) {
+        if (!openChild) {
             PopStyleVar();
             EndChild();
             return openChild;
         }
 
-            //ImGuiContext &g = *GImGui;
+        //ImGuiContext &g = *GImGui;
         ImGuiWindow *window = GetCurrentWindow();
         const auto &imStyle = GetStyle();
         //auto &neoStyle = GetNeoSequencerStyle();
@@ -689,7 +723,9 @@ namespace ImGui {
 
         const bool showZoom = !(flags & ImGuiNeoSequencerFlags_HideZoom);
         const bool headerAlwaysVisible = (flags & ImGuiNeoSequencerFlags_AlwaysShowHeader);
-        const bool enableSelection = (flags & ImGuiNeoSequencerFlags_EnableSelection);
+        context.SelectionEnabled = (flags & ImGuiNeoSequencerFlags_EnableSelection);
+        context.DraggingEnabled = context.SelectionEnabled && (flags & ImGuiNeoSequencerFlags_Selection_EnableDragging);
+        context.DeleteEnabled = context.SelectionEnabled && (flags & ImGuiNeoSequencerFlags_Selection_EnableDeletion);
 
         context.TopLeftCursor = headerAlwaysVisible ? cursorBasePos : cursor;
 
@@ -745,7 +781,7 @@ namespace ImGui {
         processCurrentFrame(frame, context);
 
         //if (enableSelection)
-            //processSelection(context);
+        //processSelection(context);
 
         const auto clipMin = context.TopBarStartCursor + ImVec2(0, context.TopBarSize.y);
 
@@ -763,11 +799,13 @@ namespace ImGui {
         auto &context = sequencerData[currentSequencer];
         IM_ASSERT(context.TimelineStack.empty() && "Missmatch in timeline Begin / End");
 
-        processSelection(context);
+        if (context.SelectionEnabled)
+            processSelection(context);
 
         context.LastSelectedTimeline = context.SelectedTimeline;
 
-        renderSelection(context);
+        if (context.SelectionEnabled)
+            renderSelection(context);
 
         renderCurrentFrame(context);
 
@@ -801,8 +839,8 @@ namespace ImGui {
 #ifdef __cplusplus
 
     bool
-    BeginNeoTimeline(const char *label, std::vector<uint32_t> &keyframes, bool *open, ImGuiNeoTimelineFlags flags) {
-        std::vector<uint32_t *> c_keyframes{keyframes.size()};
+    BeginNeoTimeline(const char *label, std::vector<int32_t> &keyframes, bool *open, ImGuiNeoTimelineFlags flags) {
+        std::vector<int32_t *> c_keyframes{keyframes.size()};
         for (uint32_t i = 0; i < keyframes.size(); i++)
             c_keyframes[i] = &keyframes[i];
 
@@ -929,7 +967,7 @@ namespace ImGui {
         return result;
     }
 
-    bool BeginNeoTimeline(const char *label, uint32_t **keyframes, uint32_t keyframeCount, bool *open,
+    bool BeginNeoTimeline(const char *label, int32_t **keyframes, uint32_t keyframeCount, bool *open,
                           ImGuiNeoTimelineFlags flags) {
         if (!BeginNeoTimelineEx(label, open, flags))
             return false;
@@ -961,9 +999,10 @@ namespace ImGui {
         context.TimelineStack.pop_back();
     }
 
-    void NeoKeyframe(uint32_t *value) {
+    void NeoKeyframe(int32_t *value) {
         IM_ASSERT(inSequencer && "Not in active sequencer!");
         auto &context = sequencerData[currentSequencer];
+        IM_ASSERT(!context.TimelineStack.empty() && "Not in timeline!");
 
         createKeyframe(value);
     }
@@ -989,18 +1028,12 @@ namespace ImGui {
         return context.IsLastKeyframeRightClicked;
     }
 
-    bool IsNeoKeyframeSelectionRemoveRequested() {
-        IM_ASSERT(inSequencer && "Not in active sequencer!");
-        auto &context = sequencerData[currentSequencer];
-
-        return context.DeleteRequested;
-    }
-
     void NeoClearSelection() {
         IM_ASSERT(inSequencer && "Not in active sequencer!");
         auto &context = sequencerData[currentSequencer];
 
-        context.Selection.clear();
+        context.Selection.resize(0);
+        context.DeleteData.resize(0);
     }
 
     bool NeoIsSelecting() {
@@ -1014,7 +1047,7 @@ namespace ImGui {
         IM_ASSERT(inSequencer && "Not in active sequencer!");
         auto &context = sequencerData[currentSequencer];
 
-        return context.Selection.empty();
+        return !context.Selection.empty();
     }
 
     bool NeoIsDraggingSelection() {
@@ -1024,18 +1057,44 @@ namespace ImGui {
         return context.SelectionState == SelectionState::Dragging;
     }
 
-    void NeoRequestDelete() {
+    uint32_t GetNeoKeyframeSelectionRemoveCount() {
         IM_ASSERT(inSequencer && "Not in active sequencer!");
         auto &context = sequencerData[currentSequencer];
 
-        context.DeleteRequested = true;
+        if(!context.DeleteEnabled)
+            return 0;
+
+        IM_ASSERT(!context.TimelineStack.empty() && "Not in timeline!");
+        const ImGuiID timelineId = context.TimelineStack.back();
+
+        for(auto && deleteSelection : context.DeleteData) {
+            if(deleteSelection.TimelineID == timelineId)
+                return deleteSelection.KeyframesToDelete.size();
+        }
+
+        return 0;
     }
 
-    void ClearSelection() {
+    void GetNeoKeyframeSelectionRemoveData(int32_t *framesToDelete) {
         IM_ASSERT(inSequencer && "Not in active sequencer!");
         auto &context = sequencerData[currentSequencer];
 
-        context.SelectionState = SelectionState::Idle;
+        if(!context.DeleteEnabled)
+            return;
+
+        IM_ASSERT(!context.TimelineStack.empty() && "Not in timeline!");
+        const ImGuiID timelineId = context.TimelineStack.back();
+
+        for(auto && deleteSelection : context.DeleteData) {
+            if(deleteSelection.TimelineID == timelineId)
+            {
+                for(uint32_t i = 0; i < deleteSelection.KeyframesToDelete.size(); i++) {
+                    framesToDelete[i] = deleteSelection.KeyframesToDelete[i];
+                }
+                return;
+            }
+        }
+
     }
 }
 

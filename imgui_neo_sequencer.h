@@ -117,18 +117,20 @@ namespace ImGui {
 
 
     // Selection API
+    // DON'T delete keyframes while dragging, internal buffer will get corrupted
+    // Order for deletion is generally:
+    // CanDelete? -> DataSize? -> GetData() -> Delete your data -> ClearSelection()
     IMGUI_API void NeoClearSelection(); // Clears selection
     IMGUI_API bool NeoIsSelecting(); // Are we currently selecting?
     IMGUI_API bool NeoHasSelection(); // Is anything selected?
     IMGUI_API bool NeoIsDraggingSelection(); // Are we dragging selection?
+    IMGUI_API inline bool NeoCanDeleteSelection() { return NeoHasSelection() && !NeoIsSelecting() && !NeoIsDraggingSelection(); } // Can selection deletion be done?
+    IMGUI_API bool IsNeoKeyframeSelectionRightClicked(); // Is selection rightclicked?
 
+    // Call only in BeginNeoTimeline / EndNeoTimeLine scope, returns selection per timeline and size per timeline
+    IMGUI_API uint32_t GetNeoKeyframeSelectionSize();
+    IMGUI_API void GetNeoKeyframeSelection(int32_t * selection);
 
-    // Deletion API
-    // Deletion is processed per timeline
-    // DON'T delete keyframes while dragging, internal buffer will get corrupted
-    // Order is generally: IsDragging? No. -> How many? -> GetData() -> Delete your data -> ClearSelection()
-    IMGUI_API uint32_t GetNeoKeyframeSelectionRemoveCount();
-    IMGUI_API void GetNeoKeyframeSelectionRemoveData(int32_t * framesToDelete);
 
     // Sets currently selected timeline inside BeginNeoSequencer scope
     IMGUI_API void SetSelectedTimeline(const char* timelineLabel);

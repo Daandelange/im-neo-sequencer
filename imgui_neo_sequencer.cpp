@@ -64,6 +64,7 @@ namespace ImGui {
         ImVector<int32_t> DraggingSelectionStart; // Contains start values of all selection elements
         bool DraggingEnabled = true;
         bool SelectionEnabled = true;
+        bool IsSelectionRightClicked = false;
 
         //Last keyframe data
         bool IsLastKeyframeHovered = false;
@@ -73,7 +74,7 @@ namespace ImGui {
         //Deletion
         bool DeleteDataDirty = false;
         bool DeleteEnabled = true;
-        ImVector<ImGuiNeoTimelineKeyframes> DeleteData;
+        ImVector<ImGuiNeoTimelineKeyframes> SelectionData;
     };
 
     static ImGuiNeoSequencerStyle style; // NOLINT(cert-err58-cpp)
@@ -200,7 +201,7 @@ namespace ImGui {
 
     static void addKeyframeToDeleteData(int32_t value, ImGuiNeoSequencerInternalData &context, const ImGuiID timelineId) {
         bool foundTimeline = false;
-        for(auto && val : context.DeleteData) {
+        for(auto && val : context.SelectionData) {
             if(val.TimelineID == timelineId) {
                 foundTimeline = true;
                 if (!val.KeyframesToDelete.contains(value))
@@ -210,8 +211,8 @@ namespace ImGui {
         }
 
         if(!foundTimeline) {
-            context.DeleteData.push_back({});
-            auto & data = context.DeleteData.back();
+            context.SelectionData.push_back({});
+            auto & data = context.SelectionData.back();
             data.TimelineID = timelineId;
             data.KeyframesToDelete.push_back(value);
         }
@@ -238,7 +239,7 @@ namespace ImGui {
                 context.Selection.push_back(id);
             }
         } else {
-            for(auto && val : context.DeleteData) {
+            for(auto && val : context.SelectionData) {
                 if(val.TimelineID == timelineId) {
                     val.KeyframesToDelete.find_erase(value);
                     break;
@@ -285,7 +286,6 @@ namespace ImGui {
             }
 
             if (context.SelectionState == SelectionState::Dragging) {
-                IM_ASSERT(context.Selection.contains(id));
                 uint32_t *it = context.Selection.find(id);
                 int32_t index = context.Selection.index_from_ptr(it);
 
@@ -314,7 +314,11 @@ namespace ImGui {
                                   color, 4);
 
         context.IsLastKeyframeHovered = hovered;
-        context.IsLastKeyframeRightClicked = hovered && IsMouseDown(ImGuiMouseButton_Right);
+        context.IsLastKeyframeRightClicked = hovered && IsMouseClicked(ImGuiMouseButton_Right);
+
+        if(context.Selection.contains(id) && context.IsLastKeyframeRightClicked) {
+            context.IsSelectionRightClicked = true;
+        }
 
         return true;
     }
@@ -583,7 +587,7 @@ namespace ImGui {
                     context.SelectionState = SelectionState::Idle;
                     context.DraggingMouseStart = {0, 0};
                     context.DeleteDataDirty = true;
-                    for(auto && t : context.DeleteData)
+                    for(auto && t : context.SelectionData)
                         t.KeyframesToDelete.resize(0);
                     break;
                 }
@@ -817,6 +821,7 @@ namespace ImGui {
             processSelection(context);
 
         context.LastSelectedTimeline = context.SelectedTimeline;
+        context.IsSelectionRightClicked = false;
 
         if (context.SelectionEnabled)
             renderSelection(context);
@@ -1047,7 +1052,7 @@ namespace ImGui {
         auto &context = sequencerData[currentSequencer];
 
         context.Selection.resize(0);
-        context.DeleteData.resize(0);
+        context.SelectionData.resize(0);
     }
 
     bool NeoIsSelecting() {
@@ -1071,7 +1076,7 @@ namespace ImGui {
         return context.SelectionState == SelectionState::Dragging;
     }
 
-    uint32_t GetNeoKeyframeSelectionRemoveCount() {
+    uint32_t GetNeoKeyframeSelectionSize() {
         IM_ASSERT(inSequencer && "Not in active sequencer!");
         auto &context = sequencerData[currentSequencer];
 
@@ -1081,7 +1086,7 @@ namespace ImGui {
         IM_ASSERT(!context.TimelineStack.empty() && "Not in timeline!");
         const ImGuiID timelineId = context.TimelineStack.back();
 
-        for(auto && deleteSelection : context.DeleteData) {
+        for(auto && deleteSelection : context.SelectionData) {
             if(deleteSelection.TimelineID == timelineId)
                 return deleteSelection.KeyframesToDelete.size();
         }
@@ -1089,7 +1094,7 @@ namespace ImGui {
         return 0;
     }
 
-    void GetNeoKeyframeSelectionRemoveData(int32_t *framesToDelete) {
+    void GetNeoKeyframeSelection(int32_t *selection) {
         IM_ASSERT(inSequencer && "Not in active sequencer!");
         auto &context = sequencerData[currentSequencer];
 
@@ -1099,16 +1104,23 @@ namespace ImGui {
         IM_ASSERT(!context.TimelineStack.empty() && "Not in timeline!");
         const ImGuiID timelineId = context.TimelineStack.back();
 
-        for(auto && deleteSelection : context.DeleteData) {
+        for(auto && deleteSelection : context.SelectionData) {
             if(deleteSelection.TimelineID == timelineId)
             {
                 for(uint32_t i = 0; i < deleteSelection.KeyframesToDelete.size(); i++) {
-                    framesToDelete[i] = deleteSelection.KeyframesToDelete[i];
+                    selection[i] = deleteSelection.KeyframesToDelete[i];
                 }
                 return;
             }
         }
 
+    }
+
+    bool IsNeoKeyframeSelectionRightClicked() {
+        IM_ASSERT(inSequencer && "Not in active sequencer!");
+        auto &context = sequencerData[currentSequencer];
+
+        return context.IsSelectionRightClicked;
     }
 }
 

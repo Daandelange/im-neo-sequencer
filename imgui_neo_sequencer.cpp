@@ -16,6 +16,12 @@ namespace ImGui {
         ImVector<int32_t> KeyframesToDelete;
     };
 
+    // Internal struct holding how many times was keyframe on certain frame rendered, used as offset for duplicates
+    struct ImGuiNeoKeyframeDuplicate {
+        int32_t Frame;
+        uint32_t Count;
+    };
+
     enum class SelectionState {
         Idle, // Doing nothing related
         Selecting,  // Selecting selection
@@ -95,6 +101,8 @@ namespace ImGui {
 
     // Data of all sequencers, this is main c++ part and I should create C alternative or use imgui ImVector or something
     static std::unordered_map<ImGuiID, ImGuiNeoSequencerInternalData> sequencerData;
+
+    static ImVector<ImGuiNeoKeyframeDuplicate> keyframeDuplicates;
 
     ///////////// STATIC HELPERS ///////////////////////
 
@@ -232,13 +240,11 @@ namespace ImGui {
 
         const bool overlaps = bb.Overlaps({context.SelectionMouseStart, GetMousePos()});
 
-        if (overlaps) {
-            if (!context.Selection.contains(id)) {
-                addKeyframeToDeleteData(value, context, timelineId);
+        const bool forceRemove = IsKeyDown(style.ModRemoveKey);
+        const bool forceAdd = IsKeyDown(style.ModAddKey);
 
-                context.Selection.push_back(id);
-            }
-        } else {
+
+        auto removeKeyframe = [&](){
             for(auto && val : context.SelectionData) {
                 if(val.TimelineID == timelineId) {
                     val.KeyframesToDelete.find_erase(value);
@@ -246,8 +252,25 @@ namespace ImGui {
                 }
             }
             context.Selection.find_erase(id);
-        }
+        };
 
+        if (overlaps) {
+            if(forceRemove) {
+                removeKeyframe();
+            } else {
+                if (!context.Selection.contains(id)) {
+                    addKeyframeToDeleteData(value, context, timelineId);
+
+                    context.Selection.push_back(id);
+                }
+            }
+        } else {
+            if (!forceRemove && !forceAdd) {
+                removeKeyframe();
+            } else {
+                return context.Selection.contains(id);
+            }
+        }
         return overlaps;
     }
 
@@ -261,8 +284,23 @@ namespace ImGui {
 
         const auto timelineOffset = getKeyframePositionX(*frame, context);
 
+        float offset = 0.0f;
+
+        for(auto && duplicateData : keyframeDuplicates) {
+            if(duplicateData.Frame == *frame) {
+                offset = (float)duplicateData.Count * style.CollidedKeyframeOffset;
+                duplicateData.Count++;
+            }
+        }
+
+        if(offset < style.CollidedKeyframeOffset) {
+            keyframeDuplicates.push_back({});
+            keyframeDuplicates.back().Frame = *frame;
+            keyframeDuplicates.back().Count = 1;
+        }
+
         const auto pos = ImVec2{context.StartValuesCursor.x + imStyle.FramePadding.x, context.ValuesCursor.y} +
-                         ImVec2{timelineOffset + context.ValuesWidth, 0};
+                         ImVec2{timelineOffset + context.ValuesWidth + offset, 0};
 
         const auto bbPos = pos - ImVec2{currentTimelineHeight / 2, 0};
 
@@ -848,7 +886,6 @@ namespace ImGui {
         EndChild();
     }
 
-
     IMGUI_API bool BeginNeoGroup(const char *label, bool *open) {
         return BeginNeoTimeline(label, nullptr, 0, open, ImGuiNeoTimelineFlags_Group);
     }
@@ -988,6 +1025,8 @@ namespace ImGui {
 
         if (result)
             context.TimelineStack.push_back(id);
+
+        keyframeDuplicates.resize(0);
 
         return result;
     }

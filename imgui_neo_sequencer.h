@@ -84,7 +84,7 @@ struct ImGuiNeoSequencerStyle {
     float       CurrentFramePointerSize = 7.0f;                 // Size of pointing arrow above current frame line
     float       CurrentFrameLineWidth   = 1.0f;                 // Width of line showing current frame over timeline
     float       ZoomHeightScale         = 1.0f;                 // Scale of Zoom bar, base height is font size
-    float       CollidedKeyframeOffset  = 1.0f;                 // Offset on which colliding keyframes are rendered
+    float       CollidedKeyframeOffset  = 3.5f;                 // Offset on which colliding keyframes are rendered
 
     ImVec4      Colors[ImGuiNeoSequencerCol_COUNT];
 

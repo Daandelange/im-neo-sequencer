@@ -73,23 +73,23 @@ enum ImGuiNeoSequencerCol_
 };
 
 struct ImGuiNeoSequencerStyle {
-    float       SequencerRounding = 2.5f;       // Corner rounding around whole sequencer
-    float       TopBarHeight = 0.0f;            // Value <= 0.0f = Height is calculated by FontSize + FramePadding.y * 2.0f
-    bool        TopBarShowFrameLines = true;   // Show line for every frame in top bar
-    bool        TopBarShowFrameTexts = true;    // Show frame number every 10th frame
-    ImVec2      ItemSpacing = {4.0f,0.5f};
-    float       DepthItemSpacing = 10.0f;       // Amount of text offset per depth level in timeline values
-    float       TopBarSpacing = 3.0f;           // Space between top bar and timeline
-    float       TimelineBorderSize = 1.0f;
-    float       CurrentFramePointerSize = 7.0f; // Size of pointing arrow above current frame line
-    float       CurrentFrameLineWidth = 1.0f; // Width of line showing current frame over timeline
-    float       ZoomHeightScale = 1.0f;         // Scale of Zoom bar, base height is font size
-    float       CollidedKeyframeOffset = 1.0f;  // Offset on which colliding keyframes are rendered
+    float       SequencerRounding       = 2.5f;                 // Corner rounding around whole sequencer
+    float       TopBarHeight            = 0.0f;                 // Value <= 0.0f = Height is calculated by FontSize + FramePadding.y * 2.0f
+    bool        TopBarShowFrameLines    = true;                 // Show line for every frame in top bar
+    bool        TopBarShowFrameTexts    = true;                 // Show frame number every 10th frame
+    ImVec2      ItemSpacing             = {4.0f,0.5f};
+    float       DepthItemSpacing        = 10.0f;                // Amount of text offset per depth level in timeline values
+    float       TopBarSpacing           = 3.0f;                 // Space between top bar and timeline
+    float       TimelineBorderSize      = 1.0f;
+    float       CurrentFramePointerSize = 7.0f;                 // Size of pointing arrow above current frame line
+    float       CurrentFrameLineWidth   = 1.0f;                 // Width of line showing current frame over timeline
+    float       ZoomHeightScale         = 1.0f;                 // Scale of Zoom bar, base height is font size
+    float       CollidedKeyframeOffset  = 1.0f;                 // Offset on which colliding keyframes are rendered
 
     ImVec4      Colors[ImGuiNeoSequencerCol_COUNT];
 
-    ImGuiKey    ModRemoveKey    = ImGuiMod_Alt;
-    ImGuiKey    ModAddKey       = ImGuiMod_Ctrl;
+    ImGuiKey    ModRemoveKey            = ImGuiMod_Ctrl;        // Key mod which when held removes selected keyframes from present selection
+    ImGuiKey    ModAddKey               = ImGuiMod_Shift;       // Key mod which when held adds selected keyframes to present selection
 
     ImGuiNeoSequencerStyle();
 };

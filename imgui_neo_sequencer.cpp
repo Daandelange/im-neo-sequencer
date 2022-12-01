@@ -238,7 +238,22 @@ namespace ImGui {
             return context.Selection.contains(id);
         }
 
-        const bool overlaps = bb.Overlaps({context.SelectionMouseStart, GetMousePos()});
+        ImRect sel = {context.SelectionMouseStart, GetMousePos()};
+
+        if(sel.Min.y > sel.Max.y)
+        {
+            ImVec2 tmp = sel.Min;
+            sel.Min = sel.Max;
+            sel.Max = tmp;
+        }
+
+        if(sel.Min.x > sel.Max.x) {
+            float tmp = sel.Min.x;
+            sel.Min.x = sel.Max.x;
+            sel.Max.x = tmp;
+        }
+
+        const bool overlaps = bb.Overlaps(sel);
 
         const bool forceRemove = IsKeyDown(style.ModRemoveKey);
         const bool forceAdd = IsKeyDown(style.ModAddKey);
@@ -257,6 +272,7 @@ namespace ImGui {
         if (overlaps) {
             if(forceRemove) {
                 removeKeyframe();
+                return context.Selection.contains(id);
             } else {
                 if (!context.Selection.contains(id)) {
                     addKeyframeToDeleteData(value, context, timelineId);
@@ -643,6 +659,19 @@ namespace ImGui {
 
         ImRect sel{context.SelectionMouseStart,
                    currentMousePosition};
+
+        if(sel.Min.y > sel.Max.y)
+        {
+            ImVec2 tmp = sel.Min;
+            sel.Min = sel.Max;
+            sel.Max = tmp;
+        }
+
+        if(sel.Min.x > sel.Max.x) {
+            float tmp = sel.Min.x;
+            sel.Min.x = sel.Max.x;
+            sel.Max.x = tmp;
+        }
 
         if(sel.GetArea() < 32.0f)
             return;

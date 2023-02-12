@@ -54,6 +54,7 @@ namespace ImGui {
         bool LastTimelineOpenned = false;
 
         ImVector<ImGuiID> TimelineStack;
+        ImVector<ImGuiID> GroupStack;
 
         uint32_t CurrentFrame = 0;
         bool HoldingCurrentFrame = false; // Are we draging current frame?
@@ -1056,6 +1057,14 @@ namespace ImGui {
         if (result)
             context.TimelineStack.push_back(id);
 
+        if(isGroup) { // Group requires special behaviour if its closed
+            context.ValuesCursor.y += currentTimelineHeight;
+            if(result) {
+                currentTimelineDepth++;
+                context.GroupStack.push_back(id);
+            }
+        }
+
         keyframeDuplicates.resize(0);
 
         return result;
@@ -1079,6 +1088,8 @@ namespace ImGui {
         auto &context = sequencerData[currentSequencer];
         const auto &imStyle = GetStyle();
 
+        IM_ASSERT(context.TimelineStack.size() > 0 && "Timeline stack push/pop missmatch!");
+
         context.ValuesCursor.x += imStyle.FramePadding.x + (float) currentTimelineDepth * style.DepthItemSpacing;
         context.ValuesCursor.y += currentTimelineHeight;
 
@@ -1090,6 +1101,12 @@ namespace ImGui {
 
         finishPreviousTimeline(context);
         currentTimelineDepth--;
+
+        if(context.TimelineStack.end() && context.GroupStack.end() &&  *context.TimelineStack.end() == *context.GroupStack.end()) {
+            currentTimelineDepth--;
+            context.GroupStack.pop_back();
+        }
+
         context.TimelineStack.pop_back();
     }
 

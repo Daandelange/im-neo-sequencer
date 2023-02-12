@@ -320,7 +320,6 @@ namespace ImGui {
 
         const auto bbPos = pos - ImVec2{currentTimelineHeight / 2, 0};
 
-
         const ImRect bb = {bbPos, bbPos + ImVec2{currentTimelineHeight, currentTimelineHeight}};
 
         const auto drawList = ImGui::GetWindowDrawList();
@@ -332,7 +331,7 @@ namespace ImGui {
         if (context.SelectionEnabled && context.Selection.contains(id) &&
             (context.SelectionState != SelectionState::Selecting)) {
             // process dragging
-            if (bb.Contains(GetMousePos()) && IsMouseDown(ImGuiMouseButton_Left) &&
+            if (bb.Contains(GetMousePos()) && IsMouseClicked(ImGuiMouseButton_Left) &&
                 context.SelectionState != SelectionState::Dragging &&
                 context.DraggingEnabled) {
                 //Start dragging
@@ -607,7 +606,9 @@ namespace ImGui {
 
         const auto windowWorkRect = GetCurrentWindow()->ClipRect;
 
-        if (IsMouseDown(ImGuiMouseButton_Left) && windowWorkRect.Contains(GetMousePos())) {
+        const auto sequencerWorkRect = ImRect{context.TopBarStartCursor + ImVec2{context.ValuesWidth,context.TopBarSize.y}, context.TopBarStartCursor + context.Size - ImVec2{0,context.TopBarSize.y}};
+
+        if (IsMouseDown(ImGuiMouseButton_Left) && windowWorkRect.Contains(GetMousePos()) && sequencerWorkRect.Contains(GetMousePos())) {
             // Not dragging yet
             switch (context.SelectionState) {
                 case SelectionState::Idle: {

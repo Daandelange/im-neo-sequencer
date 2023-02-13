@@ -854,7 +854,7 @@ namespace ImGui {
         RenderNeoSequencerTopBarOverlay(context.Zoom, context.ValuesWidth, context.StartFrame, context.EndFrame,
                                         context.OffsetFrame,
                                         context.TopBarStartCursor, context.TopBarSize, drawList,
-                                        style.TopBarShowFrameLines, style.TopBarShowFrameTexts);
+                                        style.TopBarShowFrameLines, style.TopBarShowFrameTexts, style.MaxSizePerTick);
 
         if (showZoom)
             processAndRenderZoom(context, context.TopLeftCursor, flags & ImGuiNeoSequencerFlags_AllowLengthChanging,

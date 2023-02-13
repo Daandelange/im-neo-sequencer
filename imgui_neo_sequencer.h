@@ -86,6 +86,8 @@ struct ImGuiNeoSequencerStyle {
     float       ZoomHeightScale         = 1.0f;                 // Scale of Zoom bar, base height is font size
     float       CollidedKeyframeOffset  = 3.5f;                 // Offset on which colliding keyframes are rendered
 
+    float       MaxSizePerTick          = 4.0f;                 // Maximum amount of pixels per tick on timeline (if less pixels is present, ticks are not rendered)
+
     ImVec4      Colors[ImGuiNeoSequencerCol_COUNT];
 
     ImGuiKey    ModRemoveKey            = ImGuiMod_Ctrl;        // Key mod which when held removes selected keyframes from present selection

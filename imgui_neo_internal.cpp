@@ -48,6 +48,8 @@ namespace ImGui {
 
             float perFrameWidth = GetPerFrameWidth(size.x, valuesWidth, endFrame, startFrame, zoom);
 
+            if(perFrameWidth <= 0.0f) return;
+
             while (perFrameWidth < maxPixelsPerTick)
             {
                 primaryFrames = pow(10, counter++);

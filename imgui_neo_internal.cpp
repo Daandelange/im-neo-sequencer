@@ -56,6 +56,11 @@ namespace ImGui {
                 perFrameWidth *= (float)primaryFrames;
             }
 
+            if(primaryFrames == 0 || secondaryFrames == 0) {
+                primaryFrames = 1;
+                secondaryFrames = 10;
+            }
+
             for(int32_t i = 0; i < count; i++) {
 
                 const auto primaryFrame = ((viewStart + i) % primaryFrames == 0);

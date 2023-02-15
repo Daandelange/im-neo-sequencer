@@ -1316,7 +1316,7 @@ namespace ImGui
         return 0;
     }
 
-    void GetNeoKeyframeSelection(int32_t* selection)
+    void GetNeoKeyframeSelection(FrameIndexType * selection)
     {
         IM_ASSERT(inSequencer && "Not in active sequencer!");
         auto& context = sequencerData[currentSequencer];

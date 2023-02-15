@@ -137,15 +137,13 @@ namespace ImGui {
 
     // Call only in BeginNeoTimeline / EndNeoTimeLine scope, returns selection per timeline and size per timeline
     IMGUI_API uint32_t GetNeoKeyframeSelectionSize();
-    IMGUI_API void GetNeoKeyframeSelection(int32_t * selection);
+    IMGUI_API void GetNeoKeyframeSelection(FrameIndexType  * selection);
 
 
     // Sets currently selected timeline inside BeginNeoSequencer scope
     IMGUI_API void SetSelectedTimeline(const char* timelineLabel);
 
     IMGUI_API bool IsNeoTimelineSelected(ImGuiNeoTimelineIsSelectedFlags flags = ImGuiNeoTimelineIsSelectedFlags_None);
-
-    IMGUI_API bool NeoBeginCreateKeyframe(int32_t * frame);
 
 #ifdef __cplusplus
     // C++ helper

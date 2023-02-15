@@ -121,7 +121,7 @@ namespace ImGui
     static float getKeyframePositionX(FrameIndexType frame, ImGuiNeoSequencerInternalData& context)
     {
         const auto perFrameWidth = getPerFrameWidth(context);
-        return (float) (frame - context.OffsetFrame) * perFrameWidth;
+        return (float) (frame - context.OffsetFrame - context.StartFrame) * perFrameWidth;
     }
 
     static float getWorkTimelineWidth(ImGuiNeoSequencerInternalData& context)
@@ -512,24 +512,24 @@ namespace ImGui
             window->DC.CursorPos.x += sideOffset;
 
             PushItemWidth(inputWidth);
-            InputScalar("##input_start_frame", ImGuiDataType_U32, &startFrameVal, NULL, NULL, NULL,
+            InputScalar("##input_start_frame", ImGuiDataType_U32, &startFrameVal, NULL, NULL, "%i",
                         allowEditingLength ? 0 : ImGuiInputTextFlags_ReadOnly);
 
             window->DC.CursorPos = ImVec2{zoomBarEndWithSpacing.x, cursor.y};
             window->DC.CursorPos.x -= sideOffset;
 
             PushItemWidth(inputWidth);
-            InputScalar("##input_end_frame", ImGuiDataType_U32, &endFrameVal, NULL, NULL, NULL,
+            InputScalar("##input_end_frame", ImGuiDataType_U32, &endFrameVal, NULL, NULL, "%i",
                         allowEditingLength ? 0 : ImGuiInputTextFlags_ReadOnly);
 
             window->DC.CursorPos = prevWindowCursor;
         }
 
-        if (startFrameVal < 0)
-            startFrameVal = (int32_t) *start;
-
-        if (endFrameVal < 0)
-            endFrameVal = (int32_t) *end;
+        //if (startFrameVal < 0)
+        //    startFrameVal = (int32_t) *start;
+//
+        //if (endFrameVal < 0)
+        //    endFrameVal = (int32_t) *end;
 
         if (endFrameVal <= startFrameVal)
             endFrameVal = (int32_t) *end;
@@ -655,7 +655,7 @@ namespace ImGui
 
             char overlayTextBuffer[128];
 
-            snprintf(overlayTextBuffer, sizeof(overlayTextBuffer), "%d - %d", viewStart, viewEnd);
+            snprintf(overlayTextBuffer, sizeof(overlayTextBuffer), "%i - %i", viewStart, viewEnd);
 
             const auto overlaySize = CalcTextSize(overlayTextBuffer);
 

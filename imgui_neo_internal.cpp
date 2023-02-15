@@ -79,7 +79,7 @@ namespace ImGui {
 
                 if(drawFrameText && secondaryFrame) {
                     char text[10];
-                    const auto printRes = snprintf(text, sizeof(text), "%u", viewStart + i);
+                    const auto printRes = snprintf(text, sizeof(text), "%i", viewStart + i);
                     if(printRes > 0) {
                         drawList->AddText(NULL, 0, {p1.x + 2.0f, barArea.Min.y }, IM_COL32_WHITE,text);
                     }

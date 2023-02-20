@@ -1208,19 +1208,10 @@ namespace ImGui
         context.ValuesCursor.x += imStyle.FramePadding.x + (float) currentTimelineDepth * style.DepthItemSpacing;
         context.ValuesCursor.y += currentTimelineHeight;
 
-        if (context.LastTimelineOpenned)
-        {
-            currentTimelineDepth++;
-        } else
-        {
-            finishPreviousTimeline(context);
-        }
-
         finishPreviousTimeline(context);
-        currentTimelineDepth--;
 
-        if (context.TimelineStack.end() && context.GroupStack.end() &&
-            *context.TimelineStack.end() == *context.GroupStack.end())
+        if (!context.TimelineStack.empty() && !context.GroupStack.empty() &&
+            context.TimelineStack.back() == context.GroupStack.back())
         {
             currentTimelineDepth--;
             context.GroupStack.pop_back();

@@ -867,14 +867,12 @@ namespace ImGui
         IM_ASSERT(!inSequencer && "Called when while in other NeoSequencer, that won't work, call End!");
         IM_ASSERT(*startFrame < *endFrame && "Start frame must be smaller than end frame");
 
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {0.0f, 0.0f});
         static char childNameStorage[64];
         snprintf(childNameStorage, sizeof(childNameStorage), "##%s_child_wrapper", idin);
         const bool openChild = BeginChild(childNameStorage);
 
         if (!openChild)
         {
-            PopStyleVar();
             EndChild();
             return openChild;
         }
@@ -1011,7 +1009,6 @@ namespace ImGui
         PopID();
         resetID();
 
-        PopStyleVar();
         EndChild();
     }
 

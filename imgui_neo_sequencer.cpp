@@ -690,7 +690,6 @@ namespace ImGui
                 case SelectionState::Idle:
                 {
                     if (!IsMouseClicked(ImGuiMouseButton_Left)) return;
-                    SetKeyOwner(MouseButtonToKey(ImGuiMouseButton_Left), context.Id);
 
                     context.SelectionMouseStart = GetMousePos();
                     context.StateOfSelection = SelectionState::Selecting;

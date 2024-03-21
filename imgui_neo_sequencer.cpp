@@ -361,6 +361,8 @@ namespace ImGui
         const auto pos = ImVec2{context.StartValuesCursor.x + imStyle.FramePadding.x, context.ValuesCursor.y} +
                          ImVec2{timelineOffset + context.ValuesWidth + offset, 0};
 
+        ImGui::SetCursorPos(pos); // Allows users to draw at current position
+
         const auto bbPos = pos - ImVec2{currentTimelineHeight / 2, 0};
 
         const ImRect bb = {bbPos, bbPos + ImVec2{currentTimelineHeight, currentTimelineHeight}};
@@ -369,7 +371,7 @@ namespace ImGui
 
         const ImGuiID id = getKeyframeID(frame);
 
-        bool hovered = ItemHoverable(bb, id);
+        bool hovered = ItemHoverable(bb, id, ImGuiItemFlags_None);
 
         if (context.SelectionEnabled && context.Selection.contains(id) &&
             (context.StateOfSelection != SelectionState::Selecting))
@@ -575,7 +577,7 @@ namespace ImGui
 
         const auto viewWidth = (uint32_t) ((float) totalFrames / context.Zoom);
 
-        const bool hovered = ItemHoverable(bb, GetCurrentWindow()->GetID("##zoom_slider"));
+        const bool hovered = ItemHoverable(bb, GetCurrentWindow()->GetID("##zoom_slider"), ImGuiItemFlags_None);
 
         if (hovered)
         {

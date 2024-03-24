@@ -402,7 +402,7 @@ namespace ImGui
                 float mouseDelta = GetMousePos().x - context.DraggingMouseStart.x;
 
                 auto offsetA = int32_t(
-                        mouseDelta / (context.Size.x / (float) context.EndFrame - (float) context.StartFrame));
+                        (1.f/context.Zoom) * (mouseDelta / (context.Size.x / (float) context.EndFrame - (float) context.StartFrame)));
 
                 *frame = context.DraggingSelectionStart[index] + offsetA;
             }

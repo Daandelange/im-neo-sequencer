@@ -793,9 +793,11 @@ namespace ImGui
         auto drawList = ImGui::GetWindowDrawList();
         const float arrowWidth = drawList->_Data->FontSize;
         const ImVec2 arrowSize = {arrowWidth, arrowWidth};
+        const auto& imStyle = GetStyle();
+        const ImVec2 arrowPos = context.ValuesCursor + imStyle.FramePadding + ImVec2{(float) currentTimelineDepth * style.DepthItemSpacing, 0};
         const ImRect arrowBB = {
-                context.ValuesCursor,
-                context.ValuesCursor + arrowSize
+                arrowPos,
+                arrowPos + arrowSize
         };
         const ImVec2 groupBBMin = {context.ValuesCursor + ImVec2{arrowSize.x, 0.0f}};
         const ImRect groupBB = {

@@ -152,6 +152,13 @@ namespace ImGui {
     // C++ helper
     IMGUI_API bool BeginNeoTimeline(const char* label,std::vector<int32_t> & keyframes ,bool * open = nullptr, ImGuiNeoTimelineFlags flags = ImGuiNeoTimelineFlags_None);
 #endif
+
+    // Retrieves the currently viewed frame range
+    struct NeoFrameRange { FrameIndexType from; FrameIndexType to; };
+    IMGUI_API NeoFrameRange NeoGetViewRange();
+
+    // Like PlotLines() but as a timeline ! Use with NeoGetViewRange() to prepare the data.
+    IMGUI_API void NeoTimelinePlot(const char* id, const float* data, int values_count, float scale_min = 0, float scale_max = FLT_MAX, ImVec2 graph_size = ImVec2(0, 30));
 }
 
 

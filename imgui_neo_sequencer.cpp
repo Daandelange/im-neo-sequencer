@@ -1492,6 +1492,111 @@ namespace ImGui
 
         return context.DeleteEnabled && NeoHasSelection() && !NeoIsSelecting() && !NeoIsDraggingSelection();
     }
+
+    NeoFrameRange NeoGetViewRange()
+    {
+        IM_ASSERT(inSequencer && "Not in active sequencer!");
+        auto& context = sequencerData[currentSequencer];
+
+        // This math comes from RenderNeoSequencerTopBarOverlay
+        const int32_t viewEnd = context.EndFrame + context.OffsetFrame;
+        const int32_t viewStart = context.StartFrame + context.OffsetFrame;
+        const auto count = (int32_t)((float)((viewEnd + 1) - viewStart) / context.Zoom);
+
+        return {
+            viewStart,
+            viewStart + count
+        };
+    }
+
+    // Same as ImPlotEx helpers
+    struct ImGuiPlotArrayGetterData
+    {
+        const float* Values;
+        int Stride;
+
+        ImGuiPlotArrayGetterData(const float* values, int stride) { Values = values; Stride = stride; }
+    };
+
+    static float Plot_ArrayGetter(const void* data, int idx)
+    {
+        ImGuiPlotArrayGetterData* plot_data = (ImGuiPlotArrayGetterData*)data;
+        const float v = *(const float*)(const void*)((const unsigned char*)plot_data->Values + (size_t)idx * plot_data->Stride);
+        return v;
+    }
+
+    // A custom blend of NeoTimelineEx and ImPlotEx
+    void NeoTimelinePlot(const char* id, const float* values, int values_count, float scale_min, float scale_max, ImVec2 graph_size){
+        IM_ASSERT(inSequencer && "Not in active sequencer!");
+        auto& context = sequencerData[currentSequencer];
+        ImGuiContext& g = *GImGui;
+        const ImGuiStyle& imStyle = g.Style;
+        ImGuiWindow* window = GetCurrentWindow();
+
+        const ImRect groupBB = {
+                context.ValuesCursor,
+                context.ValuesCursor + ImVec2(context.ValuesWidth,0)
+        };
+
+        ImGuiPlotArrayGetterData data(values, (int)sizeof(float));
+
+        const ImRect frame_bb = {ImVec2{context.StartValuesCursor.x+context.ValuesWidth, groupBB.Min.y}, ImVec2{context.StartValuesCursor.x+context.Size.x, groupBB.Min.y+graph_size.y}};
+        const ImVec2 frame_size = CalcItemSize(frame_bb.Max-frame_bb.Min, CalcItemWidth(), imStyle.FramePadding.y * 2.0f);
+        const ImVec2 padding {0,imStyle.FramePadding.y};
+        const ImRect inner_bb(frame_bb.Min + padding, frame_bb.Max - padding);
+        const ImRect total_bb(frame_bb.Min, frame_bb.Max);
+
+        // Exit early ?
+        if(!ItemAdd(frame_bb, window->GetID(id), NULL, ImGuiItemFlags_NoNav)){
+            return;
+        }
+
+        ImDrawList* dl = window->DrawList;
+
+        // Add ID / text
+        dl->AddText(context.ValuesCursor + imStyle.FramePadding + ImVec2{(float) currentTimelineDepth * style.DepthItemSpacing, 0}, GetColorU32(ImGuiCol_TextDisabled), id);
+
+        int res_w = ImMin((int)frame_size.x, values_count) + -1;
+        int item_count = values_count + -1;
+
+        const ImU32 col_base = GetColorU32(ImGuiCol_PlotLines);
+
+        const float t_step = 1.0f / (float)res_w;
+        const float inv_scale = (scale_min == scale_max) ? 0.0f : (1.0f / (scale_max - scale_min));
+
+        float v0 = Plot_ArrayGetter(&data, 0 % values_count);
+        float t0 = 0.0f;
+        ImVec2 tp0 = ImVec2( t0, 1.0f - ImSaturate((v0 - scale_min) * inv_scale) );                       // Point in the normalized space of our target rectangle
+
+        for (int n = 0; n < res_w; n++)
+        {
+            const float t1 = t0 + t_step;
+            const int v1_idx = (int)(t0 * item_count + 0.5f);
+            IM_ASSERT(v1_idx >= 0 && v1_idx < values_count);
+            const float v1 = Plot_ArrayGetter(&data.Values, (v1_idx + 1) % values_count);
+            const ImVec2 tp1 = ImVec2( t1, 1.0f - ImSaturate((v1 - scale_min) * inv_scale) );
+
+            ImVec2 pos0 = ImLerp(inner_bb.Min, inner_bb.Max, tp0);
+            ImVec2 pos1 = ImLerp(inner_bb.Min, inner_bb.Max, tp1);
+
+            dl->AddLine(pos0, pos1, col_base);
+
+            t0 = t1;
+            tp0 = tp1;
+        }
+        currentTimelineHeight = frame_bb.Max.y-frame_bb.Min.y;
+
+        // Reserve scroll space and bg height
+        context.FilledHeight += currentTimelineHeight;
+
+        // Never select this one
+        context.LastTimelineOpenned = false;
+
+        // Udate cursor as in : endneotimeline
+        context.ValuesCursor.y += currentTimelineHeight;
+
+        finishPreviousTimeline(context);
+    }
 }
 
 ImGuiNeoSequencerStyle::ImGuiNeoSequencerStyle()

@@ -361,8 +361,6 @@ namespace ImGui
         const auto pos = ImVec2{context.StartValuesCursor.x + imStyle.FramePadding.x, context.ValuesCursor.y} +
                          ImVec2{timelineOffset + context.ValuesWidth + offset, 0};
 
-        ImGui::SetCursorPos(pos); // Allows users to draw at current position
-
         const auto bbPos = pos - ImVec2{currentTimelineHeight / 2, 0};
 
         const ImRect bb = {bbPos, bbPos + ImVec2{currentTimelineHeight, currentTimelineHeight}};
@@ -1147,10 +1145,11 @@ namespace ImGui
 
         if (addRes)
         {
-            RenderNeoTimelane(id == context.SelectedTimeline,
+            bool selected = id == context.SelectedTimeline;
+            RenderNeoTimelane(selected,
                               context.ValuesCursor + ImVec2{context.ValuesWidth, 0},
                               ImVec2{context.Size.x - context.ValuesWidth, currentTimelineHeight},
-                              GetStyleNeoSequencerColorVec4(ImGuiNeoSequencerCol_SelectedTimeline));
+                              selected?GetStyleNeoSequencerColorVec4(ImGuiNeoSequencerCol_SelectedTimeline):GetStyleNeoSequencerColorVec4(ImGuiNeoSequencerCol_TimelinesBg));
 
             ImVec4 color = GetStyleColorVec4(ImGuiCol_Text);
             if (IsItemHovered()) color.w *= 0.7f;
@@ -1228,6 +1227,152 @@ namespace ImGui
         IM_ASSERT(!context.TimelineStack.empty() && "Not in timeline!");
 
         createKeyframe(value);
+    }
+
+    void NeoActiveZoneHandle(int32_t* frame, const ImVec4& bbData){
+        IM_ASSERT(inSequencer && "Not in active sequencer!");
+        auto& context = sequencerData[currentSequencer];
+        IM_ASSERT(!context.TimelineStack.empty() && "Not in timeline!");
+
+        const ImRect bb { bbData };
+        static bool hovered, held;
+        static void* dragging = nullptr;
+        static ImVec2 dragStart = {0,0};
+        static int32_t dragStartValue = 0;
+        const auto drawList = ImGui::GetWindowDrawList();
+        const ImGuiID id = GetCurrentWindow()->GetID((const void*)frame);
+        if (ItemAdd(bb, id)){
+            bool pressed = ButtonBehavior(bb, id, &hovered, &held);
+            drawList->AddRectFilled(bb.Min, bb.Max, ColorConvertFloat4ToU32(GetStyleNeoSequencerColorVec4(hovered?ImGuiNeoSequencerCol_ZoomBarSliderEndsHovered:ImGuiNeoSequencerCol_ZoomBarSliderEnds)));
+            if(pressed || held){
+                // Cancel selection
+                context.StateOfSelection = SelectionState::Idle;
+                context.StartDragging = false;
+
+                // Start drag ?
+                if(dragging != frame){
+                    dragStart = ImGui::GetMousePos();
+                    dragging = frame;
+                    dragStartValue = *frame;
+                }
+
+                if(dragging == frame){
+                    int32_t diff = ImGui::GetMousePos().x - dragStart.x;
+                    auto offsetA = int32_t(
+                            (1.f/context.Zoom) * (diff / (context.Size.x / (float) context.EndFrame - (float) context.StartFrame)));
+
+                    *frame = dragStartValue + offsetA;
+                }
+            }
+            if(ImGui::IsItemDeactivated()){
+                context.StateOfSelection = SelectionState::Idle;
+                context.StartDragging = false;
+                dragging = nullptr;
+                dragStartValue = 0;
+            }
+
+        }
+    }
+
+    void NeoActiveZone(ImGuiID id, int32_t* from, int32_t* to){
+        IM_ASSERT(inSequencer && "Not in active sequencer!");
+        auto& context = sequencerData[currentSequencer];
+        IM_ASSERT(!context.TimelineStack.empty() && "Not in timeline!");
+
+        // Constrain value to track
+        if(*from < 0) *from = 0;
+        if(*to < 1) *from = 1;
+        if(*from > context.EndFrame-1) *from = context.EndFrame-1;
+        if(*to > context.EndFrame) *to = context.EndFrame;
+
+        // Project position in pixels
+        const auto fromX = getKeyframePositionX(*from, context);
+        const auto toX = getKeyframePositionX(*to, context);
+
+        const auto& imStyle = GetStyle();
+        float valuesStart = context.StartValuesCursor.x + imStyle.FramePadding.x + context.ValuesWidth;
+        ImRect bb = {
+            ImVec2{valuesStart + ImMax(fromX, 0.f), context.ValuesCursor.y - currentTimelineHeight},
+            ImVec2{valuesStart + ImMin(toX, context.Size.x - imStyle.FramePadding.x - context.ValuesWidth), context.ValuesCursor.y }//+ currentTimelineHeight}
+        };
+
+        // Constrain to visible timeline zone
+
+        // Draw normal
+        const auto drawList = ImGui::GetWindowDrawList();
+        drawList->AddRectFilled(bb.Min, bb.Max, ColorConvertFloat4ToU32(GetStyleNeoSequencerColorVec4(ImGui::IsNeoTimelineSelected()?ImGuiNeoSequencerCol_SelectedTimeline:ImGuiNeoSequencerCol_TimelineActive)));
+
+        // Exit early if invisible item ? (doesn't this mess up interaction ?
+        ImGui::SetNextItemAllowOverlap();
+        if (!ItemAdd(bb, id))
+            return;
+
+        if(ImGui::IsNeoTimelineSelected()){
+            constexpr int handleSizeX = 15;
+            const int handleSizeY = currentTimelineHeight;//*.2f;
+
+            // Draw range rect
+            const ImRect bbRange = { bb.Min , bb.Max-ImVec2(0,currentTimelineHeight-handleSizeY)};
+            bool rangeHovered = true;//ItemHoverable(bbRange, id, ImGuiItemFlags_None);
+            drawList->AddRectFilled(bbRange.Min, bbRange.Max, ColorConvertFloat4ToU32(GetStyleNeoSequencerColorVec4(rangeHovered?ImGuiNeoSequencerCol_KeyframeHovered:ImGuiNeoSequencerCol_Keyframe)));
+
+            // From + To rects
+            if( rangeHovered){
+                const ImVec4 bbHandles[2] = {
+                    { bbRange.Min.x, bbRange.Min.y, bbRange.Min.x + handleSizeX, bbRange.Min.y + handleSizeY},
+                    { bbRange.Max.x - handleSizeX, bbRange.Max.y - handleSizeY, bbRange.Max.x, bbRange.Max.y}// + ImVec2(handleSizeX, handleSizeY)}
+                };
+
+                // Draw Handles
+                if(fromX >= 0)
+                    NeoActiveZoneHandle(from, bbHandles[0]);
+                if(toX <= context.Size.x - imStyle.FramePadding.x - context.ValuesWidth)
+                    NeoActiveZoneHandle(to, bbHandles[1]);
+
+                // Drag zone ?
+                ImGuiID dragID = ImGui::GetCurrentWindow()->GetID((intptr_t)to + (intptr_t)from);
+                const ImRect dragRect {
+                    bbHandles[0].z, bbHandles[0].y, bbHandles[1].x, bbHandles[0].w,
+                };
+                static ImGuiID dragging = 0;
+                static ImVec2 dragStart = {0,0};
+                static int32_t dragStartValue[2] = {0,0};
+                if(ItemAdd(dragRect,dragID)){
+                    //ImGui::GetForegroundDrawList()->AddRectFilled(dragRect.Min, dragRect.Max, IM_COL32(255,0,0,128));
+                    static bool hovered, held;
+                    bool pressed = ButtonBehavior(dragRect, dragID, &hovered, &held);
+                    if(pressed || held){
+                        // Cancel selection
+                        context.StateOfSelection = SelectionState::Idle;
+                        context.StartDragging = false;
+
+                        // Start drag ?
+                        if(dragging != dragID){
+                            dragStart = ImGui::GetMousePos();
+                            dragging = dragID;
+                            dragStartValue[0] = *from;
+                            dragStartValue[1] = *to;
+                        }
+
+                        if(dragging == dragID){
+                            int32_t diff = ImGui::GetMousePos().x - dragStart.x;
+                            auto offsetA = int32_t(
+                                    (1.f/context.Zoom) * (diff / (context.Size.x / (float) context.EndFrame - (float) context.StartFrame)));
+
+                            *from = dragStartValue[0] + offsetA;
+                            *to = dragStartValue[1] + offsetA;
+                        }
+                    }
+                    if(ImGui::IsItemDeactivated()){
+                        context.StateOfSelection = SelectionState::Idle;
+                        context.StartDragging = false;
+                        dragging = 0;
+                        dragStartValue[0] = 0;
+                        dragStartValue[1] = 0;
+                    }
+                }
+            }
+        }
     }
 
     bool IsNeoKeyframeHovered()
@@ -1356,6 +1501,7 @@ ImGuiNeoSequencerStyle::ImGuiNeoSequencerStyle()
     Colors[ImGuiNeoSequencerCol_SelectedTimeline] = ImVec4{0.98f, 0.706f, 0.322f, 0.88f};
     Colors[ImGuiNeoSequencerCol_TimelinesBg] = Colors[ImGuiNeoSequencerCol_TopBarBg];
     Colors[ImGuiNeoSequencerCol_TimelineBorder] = Colors[ImGuiNeoSequencerCol_Bg] * ImVec4{0.5f, 0.5f, 0.5f, 1.0f};
+    Colors[ImGuiNeoSequencerCol_TimelineActive] = Colors[ImGuiNeoSequencerCol_SelectedTimeline];
 
     Colors[ImGuiNeoSequencerCol_FramePointer] = ImVec4{0.98f, 0.24f, 0.24f, 0.50f};
     Colors[ImGuiNeoSequencerCol_FramePointerHovered] = ImVec4{0.98f, 0.15f, 0.15f, 1.00f};

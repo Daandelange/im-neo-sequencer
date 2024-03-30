@@ -50,6 +50,7 @@ enum ImGuiNeoSequencerCol_
     ImGuiNeoSequencerCol_TopBarBg,
     ImGuiNeoSequencerCol_SelectedTimeline,
     ImGuiNeoSequencerCol_TimelineBorder,
+    ImGuiNeoSequencerCol_TimelineActive,
     ImGuiNeoSequencerCol_TimelinesBg,
     ImGuiNeoSequencerCol_FramePointer,
     ImGuiNeoSequencerCol_FramePointerHovered,
@@ -118,6 +119,8 @@ namespace ImGui {
     // Fully customizable timeline with per key callback
     IMGUI_API bool BeginNeoTimelineEx(const char* label, bool * open = nullptr, ImGuiNeoTimelineFlags flags = ImGuiNeoTimelineFlags_None);
     IMGUI_API void NeoKeyframe(int32_t* value);
+    IMGUI_API void NeoActiveZone(ImGuiID id, int32_t* from, int32_t* to);
+    IMGUI_API void NeoActiveZoneHandle(int32_t* frame, const ImVec4& bb);
 
     IMGUI_API bool IsNeoKeyframeHovered();
     IMGUI_API bool IsNeoKeyframeSelected();

@@ -12,6 +12,7 @@ typedef int ImGuiNeoSequencerFlags;
 typedef int ImGuiNeoSequencerCol;
 typedef int ImGuiNeoTimelineFlags;
 typedef int ImGuiNeoTimelineIsSelectedFlags;
+typedef int NeoTooltipPositionFlags;
 
 // Flags for ImGui::BeginNeoSequencer()
 enum ImGuiNeoSequencerFlags_
@@ -71,6 +72,13 @@ enum ImGuiNeoSequencerCol_
     ImGuiNeoSequencerCol_Selection,
 
     ImGuiNeoSequencerCol_COUNT
+};
+
+enum NeoTooltipPositionFlags_ {
+    NeoTooltipPositionFlags_None        = 0,
+    NeoTooltipPositionFlags_TimeCursor  = 1 << 0, // @ time cursor
+    NeoTooltipPositionFlags_LabelRight  = 1 << 1, // @ labelPos, right
+    NeoTooltipPositionFlags_PrevLane    = 1 << 2, // Sets Y to the previous lane. Use if you already called EndGroup()/EndTimeline()/EndPlot()
 };
 
 struct ImGuiNeoSequencerStyle {
@@ -158,7 +166,12 @@ namespace ImGui {
     IMGUI_API NeoFrameRange NeoGetViewRange();
 
     // Like PlotLines() but as a timeline ! Use with NeoGetViewRange() to prepare the data.
-    IMGUI_API void NeoTimelinePlot(const char* id, const float* data, int values_count, float scale_min = 0, float scale_max = FLT_MAX, ImVec2 graph_size = ImVec2(0, 30));
+    IMGUI_API void NeoTimelinePlot(const char* id, const float* data, int values_count, float scale_min = 0, float scale_max = FLT_MAX, ImVec2 graph_size = ImVec2(0, 30), ...);
+
+    // Begin/End a tooltip @ time cursor on the previously closed timeline lane. Works good with plotlanes.
+    IMGUI_API bool NeoBeginTimeCursorTooltip(const char* id, NeoTooltipPositionFlags _flags = NeoTooltipPositionFlags_TimeCursor);
+    IMGUI_API void NeoEndTimeCursorTooltip();
+
 }
 
 

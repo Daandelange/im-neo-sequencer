@@ -160,7 +160,7 @@ namespace ImGui
                 timelineXmin + context.Size.x - context.ValuesWidth
         };
 
-        const auto hovered = ItemHoverable(pointerRect, GetCurrentWindow()->GetID("##_top_selector_neo"));
+        const auto hovered = ItemHoverable(pointerRect, GetCurrentWindow()->GetID("##_top_selector_neo"), ImGuiItemFlags_None);
 
         context.CurrentFrameColor = GetStyleNeoSequencerColorVec4(ImGuiNeoSequencerCol_FramePointer);
 
@@ -1526,16 +1526,19 @@ namespace ImGui
     }
 
     // A custom blend of NeoTimelineEx and ImPlotEx
-    void NeoTimelinePlot(const char* id, const float* values, int values_count, float scale_min, float scale_max, ImVec2 graph_size){
+    void NeoTimelinePlot(const char* id, const float* values, int values_count, float scale_min, float scale_max, ImVec2 graph_size, ...){
         IM_ASSERT(inSequencer && "Not in active sequencer!");
         auto& context = sequencerData[currentSequencer];
         ImGuiContext& g = *GImGui;
         const ImGuiStyle& imStyle = g.Style;
         ImGuiWindow* window = GetCurrentWindow();
 
+        if (window->SkipItems)
+            return;
+
         const ImRect groupBB = {
                 context.ValuesCursor,
-                context.ValuesCursor + ImVec2(context.ValuesWidth,0)
+                context.ValuesCursor + ImVec2(context.ValuesWidth,0) // checkme : 0 height ???
         };
 
         ImGuiPlotArrayGetterData data(values, (int)sizeof(float));
@@ -1554,7 +1557,12 @@ namespace ImGui
         ImDrawList* dl = window->DrawList;
 
         // Add ID / text
-        dl->AddText(context.ValuesCursor + imStyle.FramePadding + ImVec2{(float) currentTimelineDepth * style.DepthItemSpacing, 0}, GetColorU32(ImGuiCol_TextDisabled), id);
+        va_list args;
+        va_start(args, graph_size);
+        const char* text, *text_end;
+        ImFormatStringToTempBufferV(&text, &text_end, id, args);
+        dl->AddText(context.ValuesCursor + imStyle.FramePadding + ImVec2{(float) currentTimelineDepth * style.DepthItemSpacing, 0}, GetColorU32(ImGuiCol_TextDisabled), text, text_end);
+        va_end(args);
 
         int res_w = ImMin((int)frame_size.x, values_count) + -1;
         int item_count = values_count + -1;
@@ -1597,6 +1605,51 @@ namespace ImGui
 
         finishPreviousTimeline(context);
     }
+
+    // Opens a tooltip window in the previous timeline lane, at the current time.
+    bool NeoBeginTimeCursorTooltip(const char* id, NeoTooltipPositionFlags _flags){
+        IM_ASSERT(inSequencer && "Not in active sequencer!");
+        auto& context = sequencerData[currentSequencer];
+
+        // Prapare window position
+        // Inspired from the maths in getCurrentFrameBB(frame) which gets the time cursor bb
+        const auto& imStyle = GetStyle();
+
+        ImVec2 tooltipPos = {
+            context.TopBarStartCursor.x,
+            context.ValuesCursor.y +
+            ((_flags & NeoTooltipPositionFlags_PrevLane)?(-ImGui::GetFrameHeight()-imStyle.FramePadding.y):0) // Start at previous lane ?
+        };
+        if(_flags & NeoTooltipPositionFlags_TimeCursor){
+            tooltipPos.x += (context.ValuesWidth + imStyle.FramePadding.x - (style.CurrentFramePointerSize * GetIO().FontGlobalScale) / 2.0f)+ getKeyframePositionX(context.CurrentFrame, context);
+        }
+        else if(_flags & NeoTooltipPositionFlags_LabelRight){
+            static constexpr int tooltipWidth = 40;
+            ImGui::SetNextWindowSize(ImVec2(tooltipWidth,ImGui::GetFrameHeight()), ImGuiCond_Always);
+            tooltipPos.x += context.ValuesWidth - tooltipWidth;
+        }
+
+        ImGui::SetNextWindowPos(tooltipPos, ImGuiCond_Always);
+
+        // Some custom styling
+        ImVec4 bgCol = ImGui::GetStyleColorVec4(ImGuiCol_PopupBg);
+        ImGui::PushStyleColor(ImGuiCol_PopupBg, ImVec4(bgCol.x, bgCol.y, bgCol.z, 0.33f));
+        ImGui::PushStyleVar(ImGuiStyleVar_PopupBorderSize, 0);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{((_flags & NeoTooltipPositionFlags_LabelRight)?2.f:10.f),2.f});
+
+        if(ImGui::Begin(id, nullptr, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_Tooltip | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoDocking)){
+            return true;
+        }
+        // Restore
+        ImGui::PopStyleVar(2);
+        ImGui::PopStyleColor();
+        return false;
+    }
+    void NeoEndTimeCursorTooltip(){
+        ImGui::PopStyleVar(2);
+        ImGui::PopStyleColor();
+        ImGui::EndTooltip();
+    }
 }
 
 ImGuiNeoSequencerStyle::ImGuiNeoSequencerStyle()
@@ -1627,5 +1680,4 @@ ImGuiNeoSequencerStyle::ImGuiNeoSequencerStyle()
 
     Colors[ImGuiNeoSequencerCol_SelectionBorder] = ImVec4{0.98f, 0.706f, 0.322f, 0.61f};
     Colors[ImGuiNeoSequencerCol_Selection] = ImVec4{0.98f, 0.706f, 0.322f, 0.33f};
-
 }

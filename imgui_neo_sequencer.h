@@ -169,9 +169,11 @@ namespace ImGui {
     IMGUI_API void NeoTimelinePlot(const char* id, const float* data, int values_count, float scale_min = 0, float scale_max = FLT_MAX, ImVec2 graph_size = ImVec2(0, 30), ...);
 
     // Begin/End a tooltip @ time cursor on the previously closed timeline lane. Works good with plotlanes.
-    IMGUI_API bool NeoBeginTimeCursorTooltip(const char* id, NeoTooltipPositionFlags _flags = NeoTooltipPositionFlags_TimeCursor);
+    IMGUI_API bool NeoBeginTimeCursorTooltip(const char* id, NeoTooltipPositionFlags _flags = NeoTooltipPositionFlags_TimeCursor, float width=ImGui::GetFrameHeight()*2);
     IMGUI_API void NeoEndTimeCursorTooltip();
 
+    // Draw some rects on the timeline
+    IMGUI_API void NeoDrawTimelineRect(FrameIndexType from, FrameIndexType to, ImVec4 color={1,1,1,0.1}, const bool inPrevLane=false);
 }
 
 

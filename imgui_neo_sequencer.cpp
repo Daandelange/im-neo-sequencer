@@ -1607,7 +1607,7 @@ namespace ImGui
     }
 
     // Opens a tooltip window in the previous timeline lane, at the current time.
-    bool NeoBeginTimeCursorTooltip(const char* id, NeoTooltipPositionFlags _flags){
+    bool NeoBeginTimeCursorTooltip(const char* id, NeoTooltipPositionFlags _flags, float tooltipWidth){
         IM_ASSERT(inSequencer && "Not in active sequencer!");
         auto& context = sequencerData[currentSequencer];
 
@@ -1624,7 +1624,6 @@ namespace ImGui
             tooltipPos.x += (context.ValuesWidth + imStyle.FramePadding.x - (style.CurrentFramePointerSize * GetIO().FontGlobalScale) / 2.0f)+ getKeyframePositionX(context.CurrentFrame, context);
         }
         else if(_flags & NeoTooltipPositionFlags_LabelRight){
-            static constexpr int tooltipWidth = 40;
             ImGui::SetNextWindowSize(ImVec2(tooltipWidth,ImGui::GetFrameHeight()), ImGuiCond_Always);
             tooltipPos.x += context.ValuesWidth - tooltipWidth;
         }
@@ -1649,6 +1648,27 @@ namespace ImGui
         ImGui::PopStyleVar(2);
         ImGui::PopStyleColor();
         ImGui::EndTooltip();
+    }
+
+    void NeoDrawTimelineRect(ImGui::FrameIndexType from, ImGui::FrameIndexType to, ImVec4 color, const bool inPrevLane){
+        IM_ASSERT(inSequencer && "Not in active sequencer!");
+        auto& context = sequencerData[currentSequencer];
+        IM_ASSERT(!context.TimelineStack.empty() && "No active timelines are present!");
+
+        // Prapare the rect
+        // Inspired from the maths in getCurrentFrameBB(frame) which gets the time cursor bb
+        const auto& imStyle = GetStyle();
+
+        ImVec2 tlStart = {
+            context.TopBarStartCursor.x + context.ValuesWidth + imStyle.FramePadding.x - (style.CurrentFramePointerSize * GetIO().FontGlobalScale)*0.5f,
+            context.ValuesCursor.y - (inPrevLane?(ImGui::GetFrameHeight()):0)
+        };
+
+        ImRect rect {
+            tlStart + ImVec2{ getKeyframePositionX(from, context), 0.f},
+            tlStart + ImVec2{ getKeyframePositionX(to, context), ImGui::GetFrameHeight()-imStyle.FramePadding.y}
+        };
+        ImGui::GetWindowDrawList()->AddRectFilled(rect.Min, rect.Max, IM_COL32(color.x*255,color.y*255,color.z*255,color.w*255));
     }
 }
 
